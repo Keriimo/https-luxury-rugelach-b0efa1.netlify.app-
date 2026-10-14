@@ -74,6 +74,7 @@ h1{font-size:23px}
 <a href="https://laminat-shop24.com" target="_blank">Shop öffnen ↗</a>
 </div>
 </div>
+<div class="status" id="progress" style="display:none"></div>
 <div class="status" id="message">
 Bereit. Für den automatischen Abruf muss noch die Netlify-Funktion eingerichtet werden.
 </div>
@@ -95,6 +96,7 @@ Bereit. Für den automatischen Abruf muss noch die Netlify-Funktion eingerichtet
 <option>Laminat</option><option>Vinyl</option>
 <option>Parkett</option><option>Zubehör</option>
 </select>
+<select id="promotion"><option value="">Alle Preise</option><option value="action">Werbepreise / Aktionen</option><option value="regular">Ohne bestätigte Aktion</option></select>
 <select id="shop">
 <option value="">Beide Shops</option>
 <option value="depot">Laminat DEPOT</option>
@@ -115,13 +117,13 @@ Bereit. Für den automatischen Abruf muss noch die Netlify-Funktion eingerichtet
 <button id="tab2">Technischer Vergleich</button>
 </div>
 <div id="productsView">
-<h2>Aktuelle Preise pro m²</h2>
+<h2>Erfasste Preise pro m² (nicht garantiert vollständig)</h2>
 <div class="scroll">
 <table>
 <thead><tr>
 <th>Produkt</th><th>Shop</th><th>Kategorie</th>
 <th>Stärke</th><th>Nutzschicht</th>
-<th>Preis €/m²</th><th>Quelle</th>
+<th>Preis €/m²</th><th>Aktion</th><th>Quelle</th>
 </tr></thead>
 <tbody id="productRows"></tbody>
 </table>
@@ -137,7 +139,7 @@ Unterschiedliche Böden dürfen nicht automatisch als gleichwertig gelten.
 <div id="details"></div>
 </div>
 </section>
-<p class="small">MarktRadar-Prototyp. Keine erfundenen Live-Preise. Alle Daten und Produktmerkmale vor Verwendung im Originalshop prüfen. Noch keine externe KI angebunden.</p>
+<p class="small">MarktRadar-Prototyp. Scans können wegen Shop-Sperren oder Zeitlimits unvollständig sein. Als Aktion markierte Produkte sind lediglich automatisch erkannte Hinweise. Keine erfundenen Live-Preise. Alle Daten und Produktmerkmale vor Verwendung im Originalshop prüfen. Noch keine externe KI angebunden.</p>
 </main>
 <script>
 const $=id=>document.getElementById(id);
@@ -150,7 +152,9 @@ function filtered(){
  const q=$("search").value.toLowerCase();
  const c=$("category").value;
  const s=$("shop").value;
+ const promo=$("promotion").value;
  return products.filter(p=>
+  (promo==="action"?Boolean(p.promotion):promo==="regular"?!p.promotion:true)&&
   p.name.toLowerCase().includes(q)&&
   (!c||p.category===c)&&(!s||p.shop===s)
  );
@@ -192,9 +196,10 @@ function render(){
  <td>${safe(p.category)}</td>
  <td>${p.thickness??"–"} ${p.thickness!=null?"mm":""}</td>
  <td>${p.wear??"–"} ${p.wear!=null?"mm":""}</td>
- <td><b>${money(p.price)}</b></td>
+ <td><b>${money(p.price)}</b>${p.oldPrice?`<div class="small">Referenz: ${money(p.oldPrice)}</div>`:""}</td>
+ <td>${safe(p.promotion||"–")}${p.discountPct!=null?` (${p.discountPct} %)`:""}</td>
  <td><a href="${safe(p.url)}" target="_blank" rel="noopener">Prüfen ↗</a></td>
- </tr>`).join(""):"<tr><td colspan='7'>Keine Produkte verfügbar.</td></tr>";
+ </tr>`).join(""):"<tr><td colspan='8'>Keine Produkte verfügbar.</td></tr>";
  const q=$("search").value.toLowerCase(),c=$("category").value;
  const visible=matches.filter(x=>
  (!c||x.a.category===c)&&
@@ -263,7 +268,7 @@ async function scan(){
  render();
 }
 $("scan").onclick=scan;
-["search","category","shop","limit"].forEach(id=>
+["search","category","shop","limit","promotion"].forEach(id=>
  $(id).addEventListener(id==="search"?"input":"change",render)
 );
 $("tab1").onclick=()=>{
@@ -277,6 +282,89 @@ $("tab2").onclick=()=>{
  $("tab2").className="primary";$("tab1").className="";
 };
 render();
+
+let catalogBusy=false;
+const STORE_PREFIX="marktradar:v2:";
+const catalogs={depot:[],shop24:[]};
+function updateProgress(message){$("progress").style.display="block";$("progress").textContent=message;}
+function safeStore(shop,data){try{localStorage.setItem(STORE_PREFIX+shop,JSON.stringify(data));}catch(e){}}
+function catalogRender(){
+ products=[...catalogs.depot,...catalogs.shop24];
+ render();
+}
+function restore(){
+ for(const shop of ["depot","shop24"]){
+  try{
+   const arr=JSON.parse(localStorage.getItem(STORE_PREFIX+shop)||"[]");
+   if(Array.isArray(arr))catalogs[shop]=arr;
+  }catch(e){}
+ }
+ if(products.length===0 && (catalogs.depot.length||catalogs.shop24.length)){catalogRender();$("message").textContent="Zuletzt gespeicherte Ergebnisse. Bitte für aktuelle Preise erneut abrufen.";}
+}
+async function api(shop,action,payload){
+ const address="/.netlify/functions/scan?shop="+shop+"&action="+action;
+ const result=await fetch(address,payload?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}:{});
+ const data=await result.json();
+ if(!result.ok)throw Error(data.error||"HTTP "+result.status);
+ return data;
+}
+async function catalogScan(shop){
+ const start=await api(shop,"discover");
+ const queue=[...start.jobs],seenJobs=new Set(),urlQueue=[],seenUrls=new Set(),items=new Map();
+ let pages=0,done=0,failures=0;
+ const scanLimit=1200, maxPages=75;
+ const cache=()=>{catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
+ const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Produkte mit €/m²-Preis, "+urlQueue.length+" wartend, "+pages+" Katalogseiten, "+failures+" Fehler");
+ while((queue.length || urlQueue.length) && done<scanLimit && pages<maxPages+1){
+  if(queue.length && pages<maxPages){
+   const job=queue.shift(),key=job.type+job.url+(job.offset||"");
+   if(!seenJobs.has(key)){
+    seenJobs.add(key);pages++;
+    try{
+     const data=await api(shop,"expand",job);
+     for(const next of data.jobs||[])if(!seenJobs.has(next.type+next.url+(next.offset||"")))queue.push(next);
+     for(const link of data.urls||[])if(!seenUrls.has(link)){seenUrls.add(link);urlQueue.push(link);}
+     for(const p of data.products||[])if(p.url && !items.has(p.url))items.set(p.url,p);
+    }catch(e){failures++;}
+   }
+  }
+  if(urlQueue.length && (queue.length===0 || pages%3===0 || urlQueue.length>80)){
+   const chunk=urlQueue.splice(0,Math.min(5,scanLimit-done));
+   try{
+    const data=await api(shop,"batch",{urls:chunk});
+    for(const p of data.products||[])if(p.url)items.set(p.url,p);
+    failures+=(data.errors||[]).length;
+   }catch(e){failures+=chunk.length;}
+   done+=chunk.length;
+  }
+  progress();
+  if((pages+done)%10===0)cache();
+ }
+ cache();
+ const incomplete=queue.length>0||urlQueue.length>0||failures>0||pages>=maxPages;
+ $(shop==="depot"?"status1":"status2").textContent=items.size+" Artikel mit erkanntem €/m²-Preis · "+new Date().toLocaleString("de-DE")+(incomplete?" · Erfassung unvollständig":"");
+ return {count:items.size,incomplete,failures};
+}
+scan=async function(){
+ if(catalogBusy)return;
+ catalogBusy=true;$("scan").disabled=true;$("scan").textContent="Katalog wird geprüft …";
+ const notes=[];
+ try{
+  for(const shop of ["depot","shop24"]){
+   $("message").textContent="Katalogsuche läuft: "+sourceName(shop)+". Bitte diese Registerkarte geöffnet lassen.";
+   try{
+    const result=await catalogScan(shop);
+    notes.push(sourceName(shop)+": "+result.count+" Artikel"+(result.incomplete?" (nicht vollständig)":""));
+   }catch(e){
+    notes.push(sourceName(shop)+": Abruf fehlgeschlagen.");
+    $(shop==="depot"?"status1":"status2").textContent="Abruf fehlgeschlagen";
+   }
+  }
+  $("message").textContent=notes.join(" · ")+". Quellen vor Vertriebsentscheidungen prüfen.";
+ }finally{catalogBusy=false;$("scan").disabled=false;$("scan").textContent="Katalog erneut prüfen";}
+};
+restore();
+
 </script>
 </body>
 </html>
