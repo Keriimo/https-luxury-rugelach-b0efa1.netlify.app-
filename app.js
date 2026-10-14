@@ -260,11 +260,19 @@ function renderProducts(){
   const title=node("td"),name=node("strong",null,p.name);
   title.append(name);
   if(p.brand)title.append(node("small","muted",p.brand));
+  const priceCell=node("td","price",p.price!=null?showEuro(p.price)+" /"+(p.unit==="m²"?"m²":p.unit||"Einheit"):"Preis nicht erkannt");
+  if(p.price!=null){
+   const stamp=p.priceCheckedAt||p.checkedAt;
+   const date=stamp?new Date(stamp):null;
+   const valid=date&&Number.isFinite(date.getTime());
+   const age=valid?Date.now()-date.getTime():Infinity;
+   priceCell.append(node("small",age>24*60*60*1000?"stale":"muted",
+    valid?"Preis geprüft: "+date.toLocaleDateString("de-DE")+(age>24*60*60*1000?" · älter":""):"Prüfdatum unbekannt"));
+  }
   row.append(title,node("td",null,p.shopName),node("td",null,p.category),
    node("td",null,p.thickness!=null?p.thickness+" mm":"–"),
    node("td",null,[p.nk?"NK "+p.nk:null,p.ac].filter(Boolean).join(" / ")||"–"),
-   node("td","price",p.price!=null?showEuro(p.price)+" /"+(p.unit==="m²"?"m²":p.unit||"Einheit"):"Preis nicht erkannt"),
-   node("td",null,p.promotion||"–"));
+   priceCell,node("td",null,p.promotion||"–"));
   const source=node("td"),a=node("a",null,"Angebot ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";source.append(a);row.append(source);tbody.append(row);
  }
  if(!tbody.children.length){const row=node("tr"),td=node("td",null,"Keine Produkte für die gewählten Filter. Prüfe die Shop-Auswahl oder starte einen Scan.");td.colSpan=8;row.append(td);tbody.append(row);}
@@ -354,9 +362,12 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function mergeItem(map,p){
  if(!p||!p.url||!p.name)return;
  const old=map.get(p.url);
- if(!old){map.set(p.url,p);return;}
+ if(!old){map.set(p.url,p.price!=null?{...p,priceCheckedAt:p.checkedAt||new Date().toISOString()}:p);return;}
  const next=Object.assign({},old,p);
- if(p.price==null&&old.price!=null){next.price=old.price;next.unit=old.unit;next.priceSource=old.priceSource;}
+ if(p.price==null&&old.price!=null){
+  next.price=old.price;next.unit=old.unit;next.priceSource=old.priceSource;
+  next.priceCheckedAt=old.priceCheckedAt||old.checkedAt||null;
+ }else if(p.price!=null)next.priceCheckedAt=p.checkedAt||new Date().toISOString();
  if(!p.promotion&&old.promotion)next.promotion=old.promotion;
  if(!p.thickness&&old.thickness)next.thickness=old.thickness;
  map.set(p.url,next);
