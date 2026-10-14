@@ -1,6 +1,8 @@
 "use strict";
 (function(){
 const KEY="marktradar:catalog:v3";
+const API_PATH="/api/catalog";
+const FREE_DAILY_MAX=180;
 let dbConnection=null,revision=0,pendingDatabaseWrite=null,writingDatabase=false;
 function openDatabase(){
  if(!("indexedDB" in window))return Promise.resolve(null);
@@ -367,15 +369,24 @@ function render(){
  if(state.tab==="comparison")renderComparisons(pairs);
  if(state.tab==="offers")renderPromos();
 }
+function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
+function availableRequest(){
+ let used=0;
+ try{used=Number(localStorage.getItem(allowanceKey())||0);}catch(e){}
+ if(used>=FREE_DAILY_MAX)return false;
+ try{localStorage.setItem(allowanceKey(),String(used+1));}catch(e){}
+ return true;
+}
 async function api(site,action,extra){
+ if(!availableRequest())throw Error("Kostenlose Sicherheitsgrenze von 180 Scan-Anfragen pro Tag erreicht. Morgen erneut versuchen.");
  const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),12000);
  try{
-  const res=await fetch("/.netlify/functions/catalog",{method:"POST",
+  const res=await fetch(API_PATH,{method:"POST",
    headers:{"Content-Type":"application/json"},
    signal:ctl.signal,body:JSON.stringify(Object.assign({site,action},extra||{}))});
   const raw=await res.text();
   let data;
-  try{data=JSON.parse(raw);}catch(e){throw Error("Netlify /catalog: HTTP "+res.status+" · Antwort ist kein JSON");}
+  try{data=JSON.parse(raw);}catch(e){throw Error("Cloudflare /api/catalog: HTTP "+res.status+" · Antwort ist kein JSON");}
   if(!res.ok)throw Error("Netlify /catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(tid);}
@@ -409,7 +420,7 @@ async function legacyApi(shopId,action,body){
   const response=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal}:{signal:ctl.signal});
   const raw=await response.text();
   let data;
-  try{data=JSON.parse(raw);}catch(e){throw Error("Netlify /scan: HTTP "+response.status+" · keine JSON-Antwort");}
+  try{data=JSON.parse(raw);}catch(e){throw Error("Älterer Netlify-Scanner: HTTP "+response.status+" · keine JSON-Antwort");}
   if(!response.ok)throw Error("Netlify /scan: HTTP "+response.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(timeout);}
@@ -421,7 +432,7 @@ function legacyId(shop){
 }
 async function legacyFallback(shop,scan){
  const id=legacyId(shop);
- if(!id)return {checked:false,found:0};
+ if(!id||!location.hostname.endsWith(".netlify.app"))return {checked:false,found:0};
  const before=scan.items.size,errors=[];
  const merge=values=>{for(const p of values||[]){
   if(!p||!p.url||!p.name)continue;
@@ -472,7 +483,7 @@ async function scanShop(shop,restart){
   }
  }
  const scan={...s,visitedJobs:new Set(s.visitedJobs||[]),visitedUrls:new Set(s.visitedUrls||[]),items:new Map(previous.map(p=>[p.url,p]))};
- const maxJobs=65,maxDetails=250;
+ const maxJobs=16,maxDetails=36;
  const started=Date.now();let jobsDone=0,detailsDone=0;const examples=[];
  if(startupError)examples.push("Universeller Scanner: "+startupError);
  const label=()=>shop.name+": "+scan.items.size+" Artikel, "+[...scan.items.values()].filter(p=>p.price!=null).length+
@@ -493,7 +504,7 @@ async function scanShop(shop,restart){
       for(const p of data.products||[]){
        if(p.url&&!scan.visitedUrls.has(p.url)&&!scan.urls.includes(p.url))scan.urls.push(p.url);
       }
-      if(data.hasMore&&job.page<8)scan.jobs.push({type:"shopify",page:job.page+1});
+      if(data.hasMore&&job.page<30)scan.jobs.push({type:"shopify",page:job.page+1});
      }else{
       for(const j of data.jobs||[])scan.jobs.push(j);
       for(const url of data.urls||[])if(!scan.visitedUrls.has(url)&&!scan.urls.includes(url))scan.urls.push(url);
@@ -566,23 +577,20 @@ function downloadJson(){
 }
 async function runDiagnostics(){
  const btn=el("diagnoseButton"),old=btn.textContent;
- btn.disabled=true;btn.textContent="Prüfung läuft …";
- el("progress").hidden=false;
+ btn.disabled=true;btn.textContent="Prüfung läuft …";el("progress").hidden=false;
  const findings=[];
  try{
   try{
-   const info=await api("https://laminatdepot.de/","health");
-   findings.push("Netlify-Katalogfunktion: OK ("+(info.version||"unbekannt")+")");
-  }catch(e){findings.push("Netlify-Katalogfunktion FEHLER: "+e.message);}
+   const result=await fetch(API_PATH,{cache:"no-store"});
+   const info=await result.json();
+   if(!result.ok||!info.ok)throw Error(info.error||"HTTP "+result.status);
+   findings.push("Cloudflare-Funktion OK: "+(info.version||"unbekannt"));
+  }catch(e){findings.push("Cloudflare-Funktion FEHLER: "+e.message);}
   try{
-   const result=await api("https://laminatdepot.de/","probe");
-   findings.push("Netzabruf Laminat DEPOT: "+(result.ok?"OK, "+result.bytes+" Bytes":"fehlgeschlagen"));
-  }catch(e){findings.push("Netzabruf Laminat DEPOT FEHLER: "+e.message);}
-  try{
-   const result=await legacyApi("depot","discover");
-   findings.push("Ersatzscanner: "+((result.jobs||[]).length?"OK":"Antwort ohne Katalogseiten"));
-  }catch(e){findings.push("Ersatzscanner FEHLER: "+e.message);}
-  findings.push("Diagnosezeit: "+new Date().toLocaleString("de-DE"));
+   const check=await api("https://laminatdepot.de/","probe");
+   findings.push("Shopabruf Laminat DEPOT: "+(check.ok?"OK, "+check.bytes+" Zeichen":"fehlgeschlagen"));
+  }catch(e){findings.push("Shopabruf Laminat DEPOT FEHLER: "+e.message);}
+  findings.push("Prüfzeit: "+new Date().toLocaleString("de-DE"));
   el("progress").textContent=findings.join(" | ");
   setStatus("Verbindungstest abgeschlossen. Bei Fehler bitte die blaue Diagnosezeile kopieren.","normal");
  }finally{btn.disabled=false;btn.textContent=old;}
