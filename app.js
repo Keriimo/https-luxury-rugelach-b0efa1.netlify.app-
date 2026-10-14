@@ -527,7 +527,7 @@ async function scanShop(shop,restart){
   status();
   if((jobsDone+detailsDone)%8===0)scanStats(shop,scan);
  }
- if(scan.items.size===0||scan.failures>0&&scan.items.size<4){
+ if([...scan.items.values()].filter(p=>p.price!=null&&Number.isFinite(p.price)).length<3 || scan.failures>0&&scan.items.size<4){
   const legacy=await legacyFallback(shop,scan);
   if(legacy.checked){
    if(legacy.found)examples.push("Ersatzabruf: "+legacy.found+" zusätzliche Artikel");
