@@ -31,7 +31,8 @@ async function flushDatabase(){
  writingDatabase=true;
  try{
   const db=await openDatabase();
-  while(db&&pendingDatabaseWrite!==null){
+  if(!db){pendingDatabaseWrite=null;return;}
+  while(pendingDatabaseWrite!==null){
    const raw=pendingDatabaseWrite;pendingDatabaseWrite=null;
    await new Promise(resolve=>{
     try{
@@ -41,7 +42,7 @@ async function flushDatabase(){
     }catch(e){resolve();}
    });
   }
- }finally{writingDatabase=false;}
+ }finally{writingDatabase=false;if(pendingDatabaseWrite!==null)void flushDatabase();}
 }
 const el=id=>document.getElementById(id);
 const DEFAULT=[
