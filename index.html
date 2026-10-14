@@ -312,8 +312,9 @@ async function catalogScan(shop){
  const start=await api(shop,"discover");
  const queue=[...start.jobs],seenJobs=new Set(),urlQueue=[],seenUrls=new Set(),items=new Map();
  let pages=0,done=0,failures=0;
- const scanLimit=1200, maxPages=75;
- const cache=()=>{catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
+ const scanLimit=800, maxPages=75;
+ const previous=catalogs[shop].slice();
+ const cache=()=>{if(items.size===0 && previous.length>0 && failures>0)return;catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
  const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Produkte mit €/m²-Preis, "+urlQueue.length+" wartend, "+pages+" Katalogseiten, "+failures+" Fehler");
  while(((queue.length>0 && pages<maxPages) || urlQueue.length>0) && done<scanLimit){
   if(queue.length && pages<maxPages){
@@ -338,12 +339,12 @@ async function catalogScan(shop){
    done+=chunk.length;
   }
   progress();
-  if((pages+done)%10===0)cache();
+  if((pages+done)%10===0 && items.size)cache();
  }
  cache();
  const incomplete=queue.length>0||urlQueue.length>0||failures>0||pages>=maxPages;
  $(shop==="depot"?"status1":"status2").textContent=items.size+" Artikel mit erkanntem €/m²-Preis · "+new Date().toLocaleString("de-DE")+(incomplete?" · Erfassung unvollständig":"");
- return {count:items.size,incomplete,failures};
+ return {count:items.size||((failures>0)?previous.length:0),incomplete,failures};
 }
 scan=async function(){
  if(catalogBusy)return;
@@ -363,6 +364,8 @@ scan=async function(){
   $("message").textContent=notes.join(" · ")+". Quellen vor Vertriebsentscheidungen prüfen.";
  }finally{catalogBusy=false;$("scan").disabled=false;$("scan").textContent="Katalog erneut prüfen";}
 };
+$("scan").onclick=scan;
+$("scan").textContent="Gesamten Katalog prüfen";
 restore();
 
 </script>
