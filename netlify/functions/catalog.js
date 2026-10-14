@@ -4,7 +4,7 @@ const dns = require("node:dns").promises;
 const net = require("node:net");
 const cheerio = require("cheerio");
 
-const ROOT_LIMIT=90, URL_LIMIT=1200, REQUEST_TIMEOUT=7500, TEXT_LIMIT=2600000;
+const ROOT_LIMIT=90, URL_LIMIT=1200, REQUEST_TIMEOUT=7500, TEXT_LIMIT=6000000;
 const clean=s=>String(s||"").replace(/\s+/g," ").trim();
 const num=s=>{
   if(s===null||s===undefined)return null;
@@ -251,7 +251,7 @@ async function main(event){
   const text=(await download(site,url)).text;
   if(job.type==="map"){
    if(!/(?:\.xml(?:\?|$)|\/sitemap|sitemap\.php)/i.test(new URL(url).pathname))return reply({error:"Kein Sitemap-URL"},400);
-   const info=sitemapList(text,site),offset=Math.max(0,Math.min(30000,Number(job.offset)||0));
+   const info=sitemapList(text,site),offset=Math.max(0,Math.min(500000,Number(job.offset)||0));
    const chunk=info.urls.slice(offset,offset+300),jobs=[];
    const urls=info.kind==="page"?chunk.filter(u=>productPath(u)||(category(decodeURI(new URL(u).pathname)) && new URL(u).pathname.split("/").filter(Boolean).length>=2 && !/\/collections\/|\/category\/|\/kategorie\//i.test(u))):[];
    if(info.kind==="sitemap")jobs.push(...chunk.map(url=>({type:"map",url})));
