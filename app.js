@@ -113,39 +113,66 @@ function filteredItems(){
  return list.slice(0,state.limit);
 }
 function tokenSet(s){return new Set(neat(s).toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w=>w.length>=4&& !["laminat","boden","eiche","vinyl","parkett","inklusive","stärke","eicheoptik"].includes(w)))}
+let compareCache={signature:null,pairs:[]};
 function comparePairs(){
  const active=state.shops.filter(s=>s.active);
+ const signature=active.map(s=>s.id+":"+s.items.length+":"+(s.checkedAt||"")+":"+s.items.filter(p=>p.price!=null).length).join("|");
+ if(compareCache.signature===signature)return compareCache.pairs;
  const list=active.flatMap(s=>s.items.filter(validPrice).map(p=>({...p,shopId:s.id,shopName:s.name})));
- const pairs=[];
- for(let i=0;i<list.length;i++){
-  const x=list[i];
-  let best=null,score=-Infinity;
-  const t=tokenSet(x.name),others=list.slice(i+1);
-  for(const y of others){
-   if(x.shopId===y.shopId||x.category!==y.category)continue;
-   if(x.unit!==y.unit)continue;
-   let points=0;
-   const sameSku=x.sku&&y.sku&&x.sku===y.sku;
-   if(sameSku)points+=18;
-   if(x.thickness!==null&&x.thickness!==undefined&&y.thickness!==null&&y.thickness!==undefined){
-    const d=Math.abs(x.thickness-y.thickness);
-    points+=d<0.3?5:d<=1?1:-4;
-   }
-   if(x.wear!=null&&y.wear!=null)points+=Math.abs(x.wear-y.wear)<0.02?3:-2;
-   if(x.nk&&y.nk)points+=x.nk===y.nk?3:-2;
-   if(x.ac&&y.ac)points+=x.ac===y.ac?2:-1;
-   for(const word of tokenSet(y.name))if(t.has(word))points+=2;
-   if(points>score){score=points;best=y;}
+ const byToken=new Map(),bySku=new Map(),pairs=[];
+ function scorePair(x,y){
+  if(x.shopId===y.shopId||x.category!==y.category||x.unit!==y.unit)return -100;
+  let score=0;
+  if(x.sku&&y.sku&&x.sku===y.sku)score+=20;
+  if(x.thickness!=null&&y.thickness!=null){
+   const delta=Math.abs(x.thickness-y.thickness);
+   score+=delta<0.25?5:delta<=1?1:-5;
   }
-  if(best&&score>=5){
-   pairs.push({a:x,b:best,score,diff:x.price-best.price,relative:Math.abs(x.price-best.price)/Math.max(x.price,best.price)});
+  if(x.wear!=null&&y.wear!=null)score+=Math.abs(x.wear-y.wear)<0.03?3:-2;
+  if(x.nk&&y.nk)score+=x.nk===y.nk?3:-3;
+  if(x.ac&&y.ac)score+=x.ac===y.ac?2:-2;
+  const a=tokenSet(x.name),b=tokenSet(y.name);
+  for(const t of a)if(b.has(t))score+=2;
+  if(x.brand&&y.brand&&x.brand.toLowerCase()===y.brand.toLowerCase())score+=2;
+  return score;
+ }
+ for(const x of list){
+  const tokens=[...tokenSet(x.name)];
+  const candidates=new Set();
+  for(const token of tokens){
+   const group=byToken.get(x.category+"|"+token)||[];
+   for(const y of group.slice(-90))candidates.add(y);
+  }
+  if(x.sku)for(const y of bySku.get(x.sku)||[])candidates.add(y);
+  let best=null,bestScore=7;
+  let counter=0;
+  for(const y of candidates){
+   if(counter++>180)break;
+   const score=scorePair(x,y);
+   if(score>bestScore){best=y;bestScore=score;}
+  }
+  if(best){
+   pairs.push({a:x,b:best,score:bestScore,diff:x.price-best.price,
+    relative:Math.abs(x.price-best.price)/Math.max(x.price,best.price)});
+  }
+  for(const token of tokens){
+   const k=x.category+"|"+token,group=byToken.get(k)||[];
+   group.push(x);
+   if(group.length>400)group.shift();
+   byToken.set(k,group);
+  }
+  if(x.sku){
+   const group=bySku.get(x.sku)||[];
+   group.push(x);bySku.set(x.sku,group);
   }
  }
- const seen=new Set();
- return pairs.filter(p=>{
+ const unique=new Set();
+ const result=pairs.filter(p=>{
   const key=[p.a.url,p.b.url].sort().join("|");
-  if(seen.has(key))return false;seen.add(key);return true;
+  if(unique.has(key))return false;unique.add(key);return true;
  }).sort((a,b)=>b.relative-a.relative).slice(0,800);
+ compareCache={signature,pairs:result};
+ return result;
 }
 function renderMetrics(items,pairs){
  const top=el("metrics");top.replaceChildren();
