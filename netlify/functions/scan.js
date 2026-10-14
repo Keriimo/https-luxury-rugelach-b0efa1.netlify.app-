@@ -27,7 +27,8 @@ function numeric(x) {
 function kind(x) {
   const t = String(x || "").toLowerCase();
   if (/parkett|massivholz|fertigparkett/.test(t)) return "Parkett";
-  if (/vinyl|rigid|designboden|spc|lvt/.test(t)) return "Vinyl";
+  if (/bioboden|bio-boden|linoleum|korkboden/.test(t)) return "Bioboden";
+  if (/vinyl|rigid|designboden|spc|lvt|klick.?vinyl|klebe.?vinyl|smartec|evotec|xpertec/.test(t)) return "Vinyl";
   if (/laminat/.test(t)) return "Laminat";
   if (/sockel|leiste|dämmung|unterlage|abschlussprofil|übergangsprofil|kleber|zubehör/.test(t)) return "Zubehör";
   return null;
@@ -48,7 +49,7 @@ function normUrl(url, shop) {
 function isProductLink(url, shop) {
   if (shop === "shop24") return /\/products\/[^/?]+/i.test(url);
   const p = new URL(url).pathname;
-  if (/^\/produkt\/(?:laminat|vinyl|vinylboden|vinylboeden|parkett|zubehoer|designboden|bioboden)\/[^/?]+/i.test(p)) return true;
+  if (/^\/produkt\/(?:laminat|vinyl|vinylboden|vinylboeden|parkett|zubehoer|designboden|bioboden|bio-boeden|bodenbelaege|aktion|restposten)\/[^/?]+/i.test(p)) return true;
   return /\/(laminat|vinylboeden|parkett|zubehoer|sale)\/.+/i.test(p)
     && !/\/(art|marke|farbe|dekor|artikelart|eigenschaft|format)\//i.test(p)
     && !/\/paging\//i.test(p);
@@ -175,6 +176,40 @@ async function getText(url,shop) {
     return (await resp.text()).slice(0,5000000);
   } finally { clearTimeout(timeout); }
 }
+
+// Public Shopify collection export. Product/variant prices here are not assumed to be €/m².
+// The shop can restrict or disable this endpoint; callers fall back to public HTML/sitemaps.
+async function shopifyCatalog(page) {
+  const safePage = Math.max(1,Math.min(12,Math.trunc(Number(page)||1)));
+  const uri = "https://laminat-shop24.com/products.json?limit=250&page="+safePage;
+  const raw = await getText(uri,"shop24");
+  let data;
+  try {data=JSON.parse(raw);}catch(e){throw new Error("Kein öffentliches Shopify-JSON verfügbar");}
+  if(!Array.isArray(data.products))throw new Error("Kein Produktkatalog im JSON");
+  const entries=[];
+  for(const p of data.products){
+    const name=productName(p.title||"");
+    if(!name||!p.handle)continue;
+    const category=kind([p.product_type,p.tags,name,clean(cheerio.load(p.body_html||"").text()).slice(0,200)].join(" "));
+    if(!category)continue;
+    const url=normUrl("https://laminat-shop24.com/products/"+p.handle,"shop24");
+    if(!url)continue;
+    const description=clean(cheerio.load(p.body_html||"").text());
+    const attr=specs(description+" "+name,name);
+    const vars=Array.isArray(p.variants)?p.variants:[];
+    const hasSale=vars.some(v=>numeric(v.compare_at_price)>numeric(v.price)&&numeric(v.price)>0);
+    entries.push({
+      shop:"shop24",url,name,category,...attr,
+      price:null,oldPrice:null,unit:category==="Zubehör"?"Stück":"m²",
+      priceStatus:"Detailprüfung ausstehend",
+      promotion:hasSale?"Preisreduzierung (ungeprüfte Einheit)":null,
+      verified:false,sourcePage:uri
+    });
+  }
+  return {products:entries,hasMore:data.products.length===250,
+    page:safePage,itemsOnPage:data.products.length,source:"shopify"};
+}
+
 function resp(data,statusCode=200) {
   return {statusCode,headers:{"Content-Type":"application/json; charset=utf-8","Cache-Control":"no-store",
       "Access-Control-Allow-Origin":"https://luxury-rugelach-b0efa1.netlify.app"},
@@ -190,6 +225,10 @@ exports.handler = async event => {
   if (!SETTINGS[shop]) return resp({error:"Unbekannter Shop"},400);
   const action = event.queryStringParameters?.action || "preview";
   try {
+    if (action === "shopify" && shop === "shop24") {
+      const catalog=await shopifyCatalog(event.queryStringParameters?.page);
+      return resp(catalog);
+    }
     if (action === "discover") {
       return resp({shop,checkedAt:new Date().toISOString(),
         jobs:[{type:"sitemap",url:"https://"+SETTINGS[shop].host+"/sitemap.xml",offset:0},
