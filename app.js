@@ -398,6 +398,60 @@ function scanStats(shop,scan){
   pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,shopifyDone:scan.shopifyDone,checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
 }
+
+async function legacyApi(shopId,action,body){
+ const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),13000);
+ try{
+  const url="/.netlify/functions/scan?shop="+encodeURIComponent(shopId)+"&action="+encodeURIComponent(action);
+  const response=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal}:{signal:ctl.signal});
+  const data=await response.json();
+  if(!response.ok)throw Error(data.error||"HTTP "+response.status);
+  return data;
+ }finally{clearTimeout(timeout);}
+}
+function legacyId(shop){
+ let host;
+ try{host=new URL(shop.url).hostname.replace(/^www\./,"").toLowerCase();}catch(e){return null;}
+ return host==="laminatdepot.de"?"depot":host==="laminat-shop24.com"?"shop24":null;
+}
+async function legacyFallback(shop,scan){
+ const id=legacyId(shop);
+ if(!id)return {checked:false,found:0};
+ const before=scan.items.size,errors=[];
+ const merge=values=>{for(const p of values||[]){
+  if(!p||!p.url||!p.name)continue;
+  const category=p.category==="Bioboden"?"Bioboden & Kork":p.category;
+  mergeItem(scan.items,{...p,category,unit:p.unit||"m²",checkedAt:new Date().toISOString()});
+ }};
+ try{merge((await legacyApi(id,"preview")).products);}catch(e){errors.push(e.message);}
+ if(id==="shop24"){
+  try{const data=await legacyApi(id,"shopify");merge(data.products);}
+  catch(e){errors.push(e.message);}
+ }
+ try{
+  const discovery=await legacyApi(id,"discover");
+  const jobs=(discovery.jobs||[]).sort((a,b)=>Number(a.type==="sitemap")-Number(b.type==="sitemap"));
+  const detailUrls=[];
+  for(const job of jobs.slice(0,7)){
+   try{
+    const data=await legacyApi(id,"expand",job);
+    merge(data.products);
+    for(const u of data.urls||[]){
+     if(!detailUrls.includes(u)&&!scan.visitedUrls.has(u))detailUrls.push(u);
+    }
+   }catch(e){errors.push(e.message);}
+  }
+  for(let offset=0;offset<Math.min(detailUrls.length,30);offset+=5){
+   const urls=detailUrls.slice(offset,offset+5);
+   try{
+    const result=await legacyApi(id,"batch",{urls});
+    merge(result.products);
+   }catch(e){errors.push(e.message);}
+   await delay(200);
+  }
+ }catch(e){errors.push(e.message);}
+ return {checked:true,found:scan.items.size-before,errors};
+}
 async function scanShop(shop,restart){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let s=restart?null:shop.scan;
@@ -408,7 +462,7 @@ async function scanShop(shop,restart){
  }
  const scan={...s,visitedJobs:new Set(s.visitedJobs||[]),visitedUrls:new Set(s.visitedUrls||[]),items:new Map(previous.map(p=>[p.url,p]))};
  const maxJobs=65,maxDetails=250;
- const started=Date.now();let jobsDone=0,detailsDone=0;
+ const started=Date.now();let jobsDone=0,detailsDone=0;const examples=[];
  const label=()=>shop.name+": "+scan.items.size+" Artikel, "+[...scan.items.values()].filter(p=>p.price!=null).length+
   " Preise, "+scan.done+" Produktseiten geprüft, "+scan.failures+" technische Fehler, "+
   (scan.jobs.length+scan.urls.length)+" offene Aufgaben";
@@ -432,7 +486,10 @@ async function scanShop(shop,restart){
       for(const j of data.jobs||[])scan.jobs.push(j);
       for(const url of data.urls||[])if(!scan.visitedUrls.has(url)&&!scan.urls.includes(url))scan.urls.push(url);
      }
-    }catch(e){if(job.type!=="shopify")scan.failures++;}
+    }catch(e){
+      if(job.type!=="shopify")scan.failures++;
+      if(examples.length<3)examples.push(job.type+": "+e.message);
+    }
    }
   }
   if(scan.urls.length&&(scan.jobs.length===0||scan.urls.length>40||jobsDone%3===0)){
@@ -447,7 +504,10 @@ async function scanShop(shop,restart){
      for(const p of result.products||[])mergeItem(scan.items,p);
      scan.failures+=(result.errors||[]).filter(e=>!/Kategorie/i.test(e.reason||"")).length;
      scan.other+=(result.errors||[]).length;
-    }catch(e){scan.failures+=batch.length;}
+    }catch(e){
+      scan.failures+=batch.length;
+      if(examples.length<3)examples.push("Produktseiten: "+e.message);
+    }
     detailsDone+=batch.length;scan.done+=batch.length;
     await delay(190);
    }
@@ -455,7 +515,15 @@ async function scanShop(shop,restart){
   status();
   if((jobsDone+detailsDone)%8===0)scanStats(shop,scan);
  }
+ if(scan.items.size===0||scan.failures>0&&scan.items.size<4){
+  const legacy=await legacyFallback(shop,scan);
+  if(legacy.checked){
+   if(legacy.found)examples.push("Ersatzabruf: "+legacy.found+" zusätzliche Artikel");
+   else if(legacy.errors?.length)examples.push("Ersatzabruf: "+legacy.errors[0]);
+  }
+ }
  scanStats(shop,scan);
+ if(examples.length)el("progress").textContent=label()+" · Hinweise: "+examples.slice(0,3).join(" | ");
  return {complete:!scan.jobs.length&&!scan.urls.length,
   count:scan.items.size,priced:[...scan.items.values()].filter(p=>p.price!=null).length,
   remaining:scan.jobs.length+scan.urls.length,failed:scan.failures};
