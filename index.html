@@ -145,7 +145,7 @@ Unterschiedliche Böden dürfen nicht automatisch als gleichwertig gelten.
 const $=id=>document.getElementById(id);
 let products=[];
 let tab=1;
-const money=n=>n.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
+const money=n=>n==null?"Nicht erkannt":n.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
 const safe=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const sourceName=s=>s==="depot"?"Laminat DEPOT":"Laminat-Shop24";
 function filtered(){
@@ -167,7 +167,7 @@ function matching(){
  for(const x of a){
   let best=null,points=0;
   for(const y of b){
-   if(x.category!==y.category||used.has(y.url))continue;
+   if(x.price==null||y.price==null||x.category!==y.category||used.has(y.url))continue;
    const words=s=>new Set(s.toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w=>w.length>4));
    const wx=words(x.name),wy=words(y.name);
    let score=[...wx].filter(w=>wy.has(w)).length*2;
@@ -188,7 +188,7 @@ function render(){
  $("shop24").textContent=products.filter(x=>x.shop==="shop24").length;
  const matches=matching();
  $("pairs").textContent=matches.length;
- const shown=filtered().slice(0,Number($("limit").value));
+ const shown=filtered().sort((a,b)=>Number(a.price==null)-Number(b.price==null)).slice(0,Number($("limit").value));
  $("productRows").innerHTML=shown.length?shown.map(p=>`
  <tr>
  <td><b>${safe(p.name)}</b></td>
@@ -311,11 +311,11 @@ async function api(shop,action,payload){
 async function catalogScan(shop){
  const start=await api(shop,"discover");
  const queue=[...start.jobs],seenJobs=new Set(),urlQueue=[],seenUrls=new Set(),items=new Map();
- let pages=0,done=0,failures=0;
+ let pages=0,done=0,failures=0,withoutPrice=0,networkErrors=0,unclassified=0;
  const scanLimit=800, maxPages=75;
  const previous=catalogs[shop].slice();
  const cache=()=>{if(items.size===0 && previous.length>0 && failures>0)return;catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
- const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Produkte mit €/m²-Preis, "+urlQueue.length+" wartend, "+pages+" Katalogseiten, "+failures+" Fehler");
+ const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Artikel erkannt, "+[...items.values()].filter(p=>p.price!=null).length+" €/m²-Preise, "+withoutPrice+" ohne eindeutigen Preis, "+networkErrors+" Abruffehler, "+unclassified+" ohne Kategorie, "+urlQueue.length+" wartend");
  while(((queue.length>0 && pages<maxPages) || urlQueue.length>0) && done<scanLimit){
   if(queue.length && pages<maxPages){
    const job=queue.shift(),key=job.type+job.url+(job.offset||"");
@@ -334,17 +334,22 @@ async function catalogScan(shop){
    try{
     const data=await api(shop,"batch",{urls:chunk});
     for(const p of data.products||[])if(p.url)items.set(p.url,p);
+    withoutPrice+=(data.stats?.withoutPrice||0);
+    networkErrors+=(data.stats?.failedRequests||0);
+    unclassified+=(data.stats?.unclassified||0);
     failures+=(data.errors||[]).length;
-   }catch(e){failures+=chunk.length;}
+   }catch(e){failures+=chunk.length;networkErrors+=chunk.length;}
    done+=chunk.length;
+   await new Promise(resolve=>setTimeout(resolve,180));
   }
   progress();
   if((pages+done)%10===0 && items.size)cache();
  }
  cache();
  const incomplete=queue.length>0||urlQueue.length>0||failures>0||pages>=maxPages;
- $(shop==="depot"?"status1":"status2").textContent=items.size+" Artikel mit erkanntem €/m²-Preis · "+new Date().toLocaleString("de-DE")+(incomplete?" · Erfassung unvollständig":"");
- return {count:items.size||((failures>0)?previous.length:0),incomplete,failures};
+ const priced=[...items.values()].filter(p=>p.price!=null).length;
+ $(shop==="depot"?"status1":"status2").textContent=items.size+" Artikel, davon "+priced+" mit €/m²-Preis · "+new Date().toLocaleString("de-DE")+(incomplete?" · Erfassung unvollständig":"");
+ return {count:items.size||((failures>0)?previous.length:0),priced,incomplete,failures,withoutPrice,networkErrors,unclassified};
 }
 scan=async function(){
  if(catalogBusy)return;
@@ -355,7 +360,7 @@ scan=async function(){
    $("message").textContent="Katalogsuche läuft: "+sourceName(shop)+". Bitte diese Registerkarte geöffnet lassen.";
    try{
     const result=await catalogScan(shop);
-    notes.push(sourceName(shop)+": "+result.count+" Artikel"+(result.incomplete?" (nicht vollständig)":""));
+    notes.push(sourceName(shop)+": "+result.count+" Artikel, "+result.priced+" Preise erkannt"+(result.incomplete?" (nicht vollständig)":""));
    }catch(e){
     notes.push(sourceName(shop)+": Abruf fehlgeschlagen.");
     $(shop==="depot"?"status1":"status2").textContent="Abruf fehlgeschlagen";
