@@ -1,0 +1,28 @@
+name: MarktRadar – Cloudflare veröffentlichen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Neue Cloudflare-Veröffentlichung anfordern
+    runs-on: ubuntu-latest
+    steps:
+      - name: Gespeicherten Deploy Hook aufrufen
+        env:
+          DEPLOY_HOOK: ${{ secrets.CLOUDFLARE_DEPLOY_HOOK }}
+        shell: bash
+        run: |
+          if [ -z "$DEPLOY_HOOK" ]; then
+            echo "::error::GitHub Secret CLOUDFLARE_DEPLOY_HOOK fehlt."
+            exit 1
+          fi
+          code="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' --request POST "$DEPLOY_HOOK")"
+          if [[ "$code" != 2* ]]; then
+            echo "::error::Cloudflare hat den Start nicht angenommen (HTTP $code)."
+            exit 1
+          fi
+          echo "Cloudflare hat die Anfrage angenommen. Den Build-Status bitte unter Cloudflare > Deployments prüfen."
