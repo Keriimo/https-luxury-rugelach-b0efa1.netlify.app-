@@ -455,14 +455,21 @@ async function legacyFallback(shop,scan){
 async function scanShop(shop,restart){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let s=restart?null:shop.scan;
+ let startupError=null;
  if(!s||(!s.jobs?.length&&!s.urls?.length)){
-  const discovered=await api(shop.url,"discover");
-  s={jobs:discovered.jobs||[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:0,other:0,shopifyDone:false};
-  s.jobs.unshift({type:"shopify",page:1});
+  try{
+   const discovered=await api(shop.url,"discover");
+   s={jobs:discovered.jobs||[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:0,other:0,shopifyDone:false};
+   s.jobs.unshift({type:"shopify",page:1});
+  }catch(e){
+   startupError=e.message||"Unbekannter Startfehler";
+   s={jobs:[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:1,other:0,shopifyDone:false};
+  }
  }
  const scan={...s,visitedJobs:new Set(s.visitedJobs||[]),visitedUrls:new Set(s.visitedUrls||[]),items:new Map(previous.map(p=>[p.url,p]))};
  const maxJobs=65,maxDetails=250;
  const started=Date.now();let jobsDone=0,detailsDone=0;const examples=[];
+ if(startupError)examples.push("Universeller Scanner: "+startupError);
  const label=()=>shop.name+": "+scan.items.size+" Artikel, "+[...scan.items.values()].filter(p=>p.price!=null).length+
   " Preise, "+scan.done+" Produktseiten geprüft, "+scan.failures+" technische Fehler, "+
   (scan.jobs.length+scan.urls.length)+" offene Aufgaben";
@@ -526,7 +533,8 @@ async function scanShop(shop,restart){
  if(examples.length)el("progress").textContent=label()+" · Hinweise: "+examples.slice(0,3).join(" | ");
  return {complete:!scan.jobs.length&&!scan.urls.length,
   count:scan.items.size,priced:[...scan.items.values()].filter(p=>p.price!=null).length,
-  remaining:scan.jobs.length+scan.urls.length,failed:scan.failures};
+  remaining:scan.jobs.length+scan.urls.length,failed:scan.failures,
+  diagnostic:examples.slice(0,3).join(" | ")};
 }
 async function scanAll(restart){
  if(state.busy)return;
@@ -540,7 +548,8 @@ async function scanAll(restart){
    try{
     const result=await scanShop(shop,restart);
     outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" Preise"+
-     (result.complete?"":" · weitere Prüfung möglich"));
+     (result.complete?"":" · weitere Prüfung möglich")+
+     (!result.count&&result.diagnostic?" · "+result.diagnostic:""));
    }catch(e){outcomes.push(shop.name+": Fehler („"+e.message+"“)");}
   }
   setStatus(outcomes.join(" | ")+". Daten können unvollständig sein. Originalangebote prüfen.","normal");
