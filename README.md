@@ -1,3 +1,13 @@
+# MarktRadar 5.0 — Cloudflare Free (0 €)
+
+Die bisherige Netlify-Version bleibt wegen ausgeschöpfter Gratis-Credits auf dem letzten veröffentlichten Stand. Für neue Veröffentlichungen ist **Cloudflare Pages Free** vorgesehen.
+
+**[Anleitung für die Cloudflare-Einrichtung](./CLOUDFLARE_FREE_SETUP.md)** – vollständig im Browser, keine lokale Installation und keine kostenpflichtige KI.
+
+Die neue kostenlose Web-App nutzt `functions/api/catalog.js`, `_routes.json` und `build-cloudflare.sh`. Bitte für neue Nutzung **nicht** mehr die alte Netlify-Adresse verwenden. Die neue Adresse entsteht nach der einmaligen Cloudflare-Verknüpfung mit diesem GitHub-Projekt.
+
+---
+
 # MarktRadar – Wettbewerbsanalyse Bodenbeläge
 
 Web-App für einen Vergleich öffentlich zugänglicher Bodenbelag-Angebote. Keine lokale Installation erforderlich.
