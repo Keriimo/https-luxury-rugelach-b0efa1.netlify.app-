@@ -372,8 +372,10 @@ async function api(site,action,extra){
   const res=await fetch("/.netlify/functions/catalog",{method:"POST",
    headers:{"Content-Type":"application/json"},
    signal:ctl.signal,body:JSON.stringify(Object.assign({site,action},extra||{}))});
-  const data=await res.json();
-  if(!res.ok)throw Error(data.error||"HTTP "+res.status);
+  const raw=await res.text();
+  let data;
+  try{data=JSON.parse(raw);}catch(e){throw Error("Netlify /catalog: HTTP "+res.status+" · Antwort ist kein JSON");}
+  if(!res.ok)throw Error("Netlify /catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(tid);}
 }
@@ -404,8 +406,10 @@ async function legacyApi(shopId,action,body){
  try{
   const url="/.netlify/functions/scan?shop="+encodeURIComponent(shopId)+"&action="+encodeURIComponent(action);
   const response=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal}:{signal:ctl.signal});
-  const data=await response.json();
-  if(!response.ok)throw Error(data.error||"HTTP "+response.status);
+  const raw=await response.text();
+  let data;
+  try{data=JSON.parse(raw);}catch(e){throw Error("Netlify /scan: HTTP "+response.status+" · keine JSON-Antwort");}
+  if(!response.ok)throw Error("Netlify /scan: HTTP "+response.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(timeout);}
 }
@@ -559,7 +563,31 @@ function downloadJson(){
  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),shops:state.shops},null,2)],{type:"application/json"});
  const u=URL.createObjectURL(blob),a=node("a");a.href=u;a.download="marktradar-export.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
 }
+async function runDiagnostics(){
+ const btn=el("diagnoseButton"),old=btn.textContent;
+ btn.disabled=true;btn.textContent="Prüfung läuft …";
+ el("progress").hidden=false;
+ const findings=[];
+ try{
+  try{
+   const info=await api("https://laminatdepot.de/","health");
+   findings.push("Netlify-Katalogfunktion: OK ("+(info.version||"unbekannt")+")");
+  }catch(e){findings.push("Netlify-Katalogfunktion FEHLER: "+e.message);}
+  try{
+   const result=await api("https://laminatdepot.de/","probe");
+   findings.push("Netzabruf Laminat DEPOT: "+(result.ok?"OK, "+result.bytes+" Bytes":"fehlgeschlagen"));
+  }catch(e){findings.push("Netzabruf Laminat DEPOT FEHLER: "+e.message);}
+  try{
+   const result=await legacyApi("depot","discover");
+   findings.push("Ersatzscanner: "+((result.jobs||[]).length?"OK":"Antwort ohne Katalogseiten"));
+  }catch(e){findings.push("Ersatzscanner FEHLER: "+e.message);}
+  findings.push("Diagnosezeit: "+new Date().toLocaleString("de-DE"));
+  el("progress").textContent=findings.join(" | ");
+  setStatus("Verbindungstest abgeschlossen. Bei Fehler bitte die blaue Diagnosezeile kopieren.","normal");
+ }finally{btn.disabled=false;btn.textContent=old;}
+}
 restore();
+el("diagnoseButton").onclick=runDiagnostics;
 el("addButton").onclick=addShop;
 el("scanButton").onclick=()=>scanAll(false);
 el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true);}};
