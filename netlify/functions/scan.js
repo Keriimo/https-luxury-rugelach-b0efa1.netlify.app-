@@ -150,9 +150,11 @@ function parseDetail(html, shop, url) {
   const category = kind(name) || kind(url) || kind(body.slice(0,800));
   const priceArea = body.slice(0,10000);
   const prices = pricing(priceArea,shop);
-  if (!name || !category || !prices.price) return null;
-  return {shop,url,name,category,...prices,...specs(priceArea,name),unit:"m²",
-    verified:true,sourcePage:url};
+  if (!name || !category) return null;
+  return {shop,url,name,category,...prices,...specs(priceArea,name),
+    unit:category==="Zubehör"?"Stück":"m²",
+    priceStatus:prices.price!=null?"erkannt":"nicht_erkannt",
+    verified:prices.price!=null,sourcePage:url};
 }
 async function getText(url,shop) {
   const valid = normUrl(url,shop);
@@ -217,9 +219,23 @@ exports.handler = async event => {
       const products=[],errors=[];
       settled.forEach((r,i)=>{
         if(r.status==="fulfilled"&&r.value)products.push(r.value);
-        else errors.push({url:urls[i],error:r.status==="rejected"?clean(r.reason?.message):"Kein eindeutiger €/m²-Preis"});
+        else errors.push({
+          url:urls[i],
+          type:r.status==="rejected"?"request":"classification",
+          error:r.status==="rejected"?clean(r.reason?.message):"Keine eindeutige Produktkategorie"
+        });
       });
-      return resp({products,errors,checkedAt:new Date().toISOString()});
+      return resp({
+        products,errors,
+        stats:{
+          checked:urls.length,
+          withPrice:products.filter(p=>p.price!=null).length,
+          withoutPrice:products.filter(p=>p.price==null).length,
+          failedRequests:errors.filter(e=>e.type==="request").length,
+          unclassified:errors.filter(e=>e.type==="classification").length
+        },
+        checkedAt:new Date().toISOString()
+      });
     }
     const settled=await Promise.allSettled(SETTINGS[shop].listings.slice(0,4).map(async url=>
       directCards(await getText(url,shop),shop,url).products));
