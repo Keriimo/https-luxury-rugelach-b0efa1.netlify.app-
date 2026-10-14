@@ -1,6 +1,48 @@
 "use strict";
 (function(){
 const KEY="marktradar:catalog:v3";
+let dbConnection=null,revision=0,pendingDatabaseWrite=null,writingDatabase=false;
+function openDatabase(){
+ if(!("indexedDB" in window))return Promise.resolve(null);
+ if(dbConnection)return dbConnection;
+ dbConnection=new Promise(resolve=>{
+  try{
+   const request=indexedDB.open("MarktRadarKatalog",1);
+   request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains("states"))request.result.createObjectStore("states");};
+   request.onsuccess=()=>resolve(request.result);
+   request.onerror=()=>resolve(null);
+   request.onblocked=()=>resolve(null);
+  }catch(e){resolve(null);}
+ });
+ return dbConnection;
+}
+async function readDatabase(){
+ const db=await openDatabase();if(!db)return null;
+ return new Promise(resolve=>{
+  try{
+   const req=db.transaction("states","readonly").objectStore("states").get(KEY);
+   req.onsuccess=()=>resolve(req.result||null);
+   req.onerror=()=>resolve(null);
+  }catch(e){resolve(null);}
+ });
+}
+async function flushDatabase(){
+ if(writingDatabase)return;
+ writingDatabase=true;
+ try{
+  const db=await openDatabase();
+  while(db&&pendingDatabaseWrite!==null){
+   const raw=pendingDatabaseWrite;pendingDatabaseWrite=null;
+   await new Promise(resolve=>{
+    try{
+     const tx=db.transaction("states","readwrite");
+     tx.objectStore("states").put(raw,KEY);
+     tx.oncomplete=resolve;tx.onerror=resolve;tx.onabort=resolve;
+    }catch(e){resolve();}
+   });
+  }
+ }finally{writingDatabase=false;}
+}
 const el=id=>document.getElementById(id);
 const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
@@ -26,19 +68,41 @@ function opt(sel,value,label){
  const o=document.createElement("option");o.value=String(value);o.textContent=String(label);sel.append(o);
 }
 function save(){
- try{localStorage.setItem(KEY,JSON.stringify({shops:state.shops,tab:state.tab}));}
- catch(e){setStatus("Der Browserspeicher ist voll. Bitte zuerst alte Daten exportieren oder unbenutzte Shops entfernen.","warning");}
+ revision++;
+ const saved={shops:state.shops,tab:state.tab};
+ const raw=JSON.stringify(saved);
+ pendingDatabaseWrite=raw;void flushDatabase();
+ try{
+  const lite=raw.length<650000?saved:{
+   shops:state.shops.map(shop=>({...shop,items:shop.items.slice(0,60),scan:null})),
+   tab:state.tab
+  };
+  localStorage.setItem(KEY,JSON.stringify(lite));
+ }catch(e){
+  setStatus("Browserspeicher eingeschränkt. Eine Sicherung als JSON ist möglich.","warning");
+ }
+}
+function applySaved(old){
+ if(old&&Array.isArray(old.shops)&&old.shops.length){
+  state.shops=old.shops.filter(x=>x&&typeof x.name==="string"&&typeof x.url==="string"&&Array.isArray(x.items))
+   .slice(0,20).map(x=>({...x,scan:x.scan||null,active:x.active!==false}));
+ }
+ if(old&&["products","comparison","offers"].includes(old.tab))state.tab=old.tab;
 }
 function restore(){
+ try{applySaved(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
+}
+async function restoreFullDatabase(){
+ const initialRevision=revision;
+ const raw=await readDatabase();
+ if(!raw||initialRevision!==revision)return;
  try{
-  const old=JSON.parse(localStorage.getItem(KEY)||"null");
-  if(old&&Array.isArray(old.shops)&&old.shops.length){
-   state.shops=old.shops.filter(x=>x&&typeof x.name==="string"&&typeof x.url==="string"&&Array.isArray(x.items))
-    .slice(0,20).map(x=>({...x,scan:x.scan||null,active:x.active!==false}));
-  }
-  if(old&&["products","comparison","offers"].includes(old.tab))state.tab=old.tab;
+  const old=JSON.parse(raw);
+  applySaved(old);renderShops();render();
+  setStatus("Gespeicherte Kataloge aus der Browser-Datenbank geladen.","ok");
  }catch(e){}
 }
+
 function setStatus(message,kind){
  const target=el("message");target.textContent=message;target.dataset.kind=kind||"normal";
 }
@@ -401,4 +465,5 @@ for(const [id,t] of [["productsTab","products"],["comparisonTab","comparison"],[
  el(id).onclick=()=>{state.tab=t;save();render();};
 }
 renderShops();render();
+void restoreFullDatabase();
 })();
