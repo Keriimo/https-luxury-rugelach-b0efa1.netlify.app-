@@ -165,6 +165,7 @@ function renderShops(){
 }
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>s.items.map(p=>({...p,shopId:s.id,shopName:s.name})))}
 function validPrice(p){return Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
+function priceAvailable(p){return Number.isFinite(p.price)&&p.price>0&&["m²","Stück"].includes(p.unit)}
 function filteredItems(){
  const q=state.query.toLowerCase();
  let list=allItems().filter(p=>
@@ -183,7 +184,7 @@ function comparePairs(){
  const active=state.shops.filter(s=>s.active);
  const signature=active.map(s=>s.id+":"+s.items.length+":"+(s.checkedAt||"")+":"+s.items.filter(p=>p.price!=null).length).join("|");
  if(compareCache.signature===signature)return compareCache.pairs;
- const list=active.flatMap(s=>s.items.filter(validPrice).map(p=>({...p,shopId:s.id,shopName:s.name})));
+ const list=active.flatMap(s=>s.items.filter(priceAvailable).map(p=>({...p,shopId:s.id,shopName:s.name})));
  const byToken=new Map(),bySku=new Map(),pairs=[];
  function scorePair(x,y){
   if(x.shopId===y.shopId||x.category!==y.category||x.unit!==y.unit)return -100;
@@ -286,7 +287,7 @@ function comparisonDetail(pair,box){
  const t=node("table","detail"),heading=node("tr");
  tableHeader(heading,["Merkmal",pair.a.shopName,pair.b.shopName]);t.append(heading);
  featureRow(t,"Produkt",pair.a.name,pair.b.name);
- featureRow(t,"Preis /m²",showEuro(pair.a.price),showEuro(pair.b.price));
+ featureRow(t,"Preis je "+pair.a.unit,showEuro(pair.a.price),showEuro(pair.b.price));
  featureRow(t,"Stärke",pair.a.thickness!=null?pair.a.thickness+" mm":null,pair.b.thickness!=null?pair.b.thickness+" mm":null);
  featureRow(t,"Nutzschicht",pair.a.wear!=null?pair.a.wear+" mm":null,pair.b.wear!=null?pair.b.wear+" mm":null);
  featureRow(t,"Nutzungsklasse",pair.a.nk?("NK "+pair.a.nk):null,pair.b.nk?("NK "+pair.b.nk):null);
@@ -304,7 +305,7 @@ function renderComparisons(pairs){
  const choices=pairs.filter(pair=>{
   const q=state.query.toLowerCase();
   return (!state.category||pair.a.category===state.category)&&
-   (!state.promo||Boolean(pair.a.promotion)||Boolean(pair.b.promotion))&&
+   (!state.promo||(state.promo==="yes"?(Boolean(pair.a.promotion)||Boolean(pair.b.promotion)):(!pair.a.promotion&&!pair.b.promotion)))&&
    (!q||(pair.a.name+" "+pair.b.name).toLowerCase().includes(q));
  }).slice(0,state.limit);
  for(const pair of choices){
@@ -312,8 +313,8 @@ function renderComparisons(pairs){
   const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
   left.append(node("strong",null,pair.a.shopName+": "+pair.a.name));
   left.append(node("small","muted","↔ "+pair.b.shopName+": "+pair.b.name));
-  left.append(node("div","",showEuro(pair.a.price)+" /m² ↔ "+showEuro(pair.b.price)+" /m²"));
-  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je m²"));
+  left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
+  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je "+pair.a.unit));
   const detail=node("div","detail-box");detail.hidden=true;
   item.append(left,btn("Technik vergleichen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
   area.append(item);
