@@ -40,45 +40,77 @@ function safeIP(a){
   if(family===6){const v=a.toLowerCase();return /^2[0-9a-f]{3}:/.test(v)&&!v.startsWith("2001:db8:");}
   return false;
 }
-async function download(site,raw,maxRedirects=2){
-  const url=permitted(site,raw);
-  if(!url)throw Error("URL gehört nicht zu diesem Shop");
-  const uri=new URL(url);
-  const addresses=await dns.lookup(uri.hostname,{all:true});
-  const approved=addresses.find(item=>safeIP(item.address));
-  if(!approved)throw Error("Shopadresse ist nicht öffentlich erreichbar");
-  return new Promise((resolve,reject)=>{
-    let size=0,parts=[];
-    const request=https.get(uri,{
-      lookup:(host,opts,callback)=>{
-        if(opts&&opts.all)callback(null,[{address:approved.address,family:approved.family}]);
-        else callback(null,approved.address,approved.family);
-      },
-      servername:uri.hostname,timeout:REQUEST_TIMEOUT,
-      headers:{"Accept":"text/html,application/json,application/xml,text/xml;q=0.9,*/*;q=0.2",
-        "User-Agent":"MarktRadar/3.0 (+public product price comparison; polite crawl)"}
-    },response=>{
-      if(response.statusCode>=300&&response.statusCode<400&&response.headers.location&&maxRedirects>0){
-        response.resume();
-        let next;
-        try{next=permitted(site,new URL(response.headers.location,url).href);}catch(e){}
-        if(!next){reject(Error("Weiterleitung auf fremde Adresse blockiert"));return;}
-        download(site,next,maxRedirects-1).then(resolve,reject);return;
+async function pinnedRequest(site,url,address,redirectsRemaining){
+ const uri=new URL(url);
+ return new Promise((resolve,reject)=>{
+  let total=0;
+  const chunks=[];
+  const request=https.get(url,{
+    servername:uri.hostname,
+    family:4,
+    lookup:(hostname,opts,done)=>{
+      if(opts&&opts.all)done(null,[{address:address.address,family:address.family}]);
+      else done(null,address.address,address.family);
+    },
+    timeout:REQUEST_TIMEOUT,
+    headers:{
+      "Accept":"text/html,application/xhtml+xml,application/xml;q=0.9,application/json;q=0.9,*/*;q=0.5",
+      "Accept-Language":"de-DE,de;q=0.9,en;q=0.7",
+      "User-Agent":"Mozilla/5.0 (compatible; MarktRadar/1.0; public catalog price check)"
+    }
+  },response=>{
+    const status=response.statusCode;
+    if(status>=300&&status<400){
+      response.resume();
+      if(!response.headers.location||redirectsRemaining<=0){
+        reject(Error("Weiterleitung nicht erlaubt (HTTP "+status+")"));return;
       }
-      if(response.statusCode!==200){response.resume();reject(Error("HTTP "+response.statusCode));return;}
-      const type=String(response.headers["content-type"]||"");
-      if(type&&!/text|json|xml|html/i.test(type)){response.resume();reject(Error("Kein lesbarer HTML/XML/JSON-Inhalt"));return;}
-      response.on("data",chunk=>{
-        size+=chunk.length;
-        if(size>TEXT_LIMIT){request.destroy(Error("Seite ist zu groß"));return;}
-        parts.push(chunk);
-      });
-      response.on("end",()=>resolve({text:Buffer.concat(parts).toString("utf8"),url}));
-      response.on("error",reject);
+      let next=null;
+      try{next=permitted(site,new URL(response.headers.location,url).href);}catch(e){}
+      if(!next){reject(Error("Weiterleitung außerhalb des Shops blockiert"));return;}
+      // Resolve and pin the next target again; never follow redirects automatically.
+      download(site,next,redirectsRemaining-1).then(resolve,reject);
+      return;
+    }
+    if(status!==200){response.resume();reject(Error("Shop antwortet HTTP "+status));return;}
+    const type=String(response.headers["content-type"]||"");
+    if(type&&!/text|json|xml|html/i.test(type)){response.resume();reject(Error("Kein HTML/XML/JSON"));return;}
+    response.on("data",part=>{
+      total+=part.length;
+      if(total>TEXT_LIMIT){request.destroy(Error("Shopseite zu groß"));return;}
+      chunks.push(part);
     });
-    request.on("timeout",()=>request.destroy(Error("Zeitüberschreitung")));
-    request.on("error",reject);
+    response.on("end",()=>resolve({text:Buffer.concat(chunks).toString("utf8"),url}));
+    response.on("error",reject);
   });
+  request.on("timeout",()=>request.destroy(Error("Zeitüberschreitung nach "+REQUEST_TIMEOUT+" ms")));
+  request.on("error",reject);
+ });
+}
+async function download(site,raw,maxRedirects=2){
+ const url=permitted(site,raw);
+ if(!url)throw Error("URL gehört nicht zu diesem Shop");
+ const domain=new URL(url).hostname;
+ let addresses;
+ try{addresses=await dns.lookup(domain,{all:true});}
+ catch(e){throw Error("DNS-Auflösung fehlgeschlagen: "+String(e.code||e.message));}
+ // In many cloud environments IPv6 is not routable. Prefer public IPv4, but
+ // retain IPv6 as a last resort. Every request uses the previously checked IP.
+ const permittedAddresses=addresses.filter(x=>safeIP(x.address))
+   .sort((a,b)=>(a.family===4?0:1)-(b.family===4?0:1)).slice(0,3);
+ if(!permittedAddresses.length)throw Error("Keine öffentliche IP-Adresse");
+ const failures=[];
+ for(const candidate of permittedAddresses){
+  try{return await pinnedRequest(site,url,candidate,maxRedirects);}
+  catch(e){
+   const message=String(e.message||e);
+   failures.push(message);
+   // Reattempt only connection failures, not 4xx/5xx or policy refusals.
+   if(/Shop antwortet HTTP|Weiterleitung|Shopseite zu groß|Kein HTML|außerhalb des Shops/i.test(message))
+     break;
+  }
+ }
+ throw Error(failures[0]||"Shopabruf fehlgeschlagen");
 }
 function category(s){
  const t=clean(s).toLowerCase();
