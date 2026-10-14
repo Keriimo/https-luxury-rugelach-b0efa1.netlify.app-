@@ -8,7 +8,8 @@ const SETTINGS = {
       "https://laminatdepot.de/vinylboeden",
       "https://laminatdepot.de/parkett",
       "https://laminatdepot.de/zubehoer",
-      "https://laminatdepot.de/sale"
+      "https://laminatdepot.de/sale",
+      "https://laminatdepot.de/alleartikel"
     ]
   },
   shop24: {
@@ -47,6 +48,7 @@ function normUrl(url, shop) {
 function isProductLink(url, shop) {
   if (shop === "shop24") return /\/products\/[^/?]+/i.test(url);
   const p = new URL(url).pathname;
+  if (/^\/produkt\/(?:laminat|vinyl|vinylboden|vinylboeden|parkett|zubehoer|designboden|bioboden)\/[^/?]+/i.test(p)) return true;
   return /\/(laminat|vinylboeden|parkett|zubehoer|sale)\/.+/i.test(p)
     && !/\/(art|marke|farbe|dekor|artikelart|eigenschaft|format)\//i.test(p)
     && !/\/paging\//i.test(p);
@@ -88,7 +90,7 @@ function pricing(raw, shop) {
   const specific = t.match(/(?:Komplett-Set|Aktionspreis|Angebotspreis)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€\s*\/\s*(?:m²|m2|qm)/i)
     || t.match(/Preis\s*(?:pro\s*)?(?:m²|m2|qm)\s*:?\s*\|?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i);
   const otherFormats = [
-    /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–-]*\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
+    /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*(?:[:|–-]\s*)*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
     /(?:m²|m2|qm)\s*[-:]?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
     /(\d{1,4}(?:[.,]\d{2}))\s*€\s*(?:je|pro)\s*(?:m²|m2|qm)/i
   ];
@@ -103,7 +105,7 @@ function pricing(raw, shop) {
   const action = /\bAKTIONS-Preis\b|\bAktionspreis\b/i.test(t.slice(0,550)) ? "Aktion"
     : /(?:Restposten|BodenOUTLET)/i.test(t.slice(0,400)) ? "Restposten"
     : /\bSALE\b/i.test(t.slice(0,400)) ? "Sale"
-    : oldPrice ? (shop === "depot" ? "Set-Vorteil" : "UVP-Vergleich") : null;
+    : null;
   return {price, oldPrice, promotion: action,
     discountPct: oldPrice ? Math.round((1 - price / oldPrice) * 100) : null};
 }
