@@ -87,7 +87,13 @@ function pricing(raw, shop) {
   }
   const specific = t.match(/(?:Komplett-Set|Aktionspreis|Angebotspreis)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€\s*\/\s*(?:m²|m2|qm)/i)
     || t.match(/Preis\s*(?:pro\s*)?(?:m²|m2|qm)\s*:?\s*\|?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i);
-  const price = specific ? numeric(specific[1]) : hits[0] || null;
+  const otherFormats = [
+    /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–-]?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
+    /(?:m²|m2|qm)\s*[-:]?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
+    /(\d{1,4}(?:[.,]\d{2}))\s*€\s*(?:je|pro)\s*(?:m²|m2|qm)/i
+  ];
+  const alternative = otherFormats.map(rx=>t.match(rx)).find(Boolean);
+  const price = specific ? numeric(specific[1]) : (hits[0] || (alternative ? numeric(alternative[1]) : null));
   const oldHit = t.match(/(?:statt|UVP)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i);
   const oldPrice = oldHit && price && numeric(oldHit[1]) > price ? numeric(oldHit[1]) : null;
   const action = /\bAKTIONS-Preis\b|\bAktionspreis\b/i.test(t.slice(0,550)) ? "Aktion"
