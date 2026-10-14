@@ -93,15 +93,33 @@ function applySaved(old){
 function restore(){
  try{applySaved(JSON.parse(localStorage.getItem(KEY)||"null"));}catch(e){}
 }
+function migratePreviousCatalog(){
+ let total=0;
+ for(const [id,oldKey] of [["dep","depot"],["sh24","shop24"]]){
+  const shop=state.shops.find(s=>s.id===id);
+  if(!shop||shop.items.length)continue;
+  try{
+   const old=JSON.parse(localStorage.getItem("marktradar:v2:"+oldKey)||"[]");
+   if(Array.isArray(old)&&old.length){
+    shop.items=old.filter(p=>p&&p.url&&p.name).map(p=>({
+     ...p,unit:p.unit||"m²",priceCheckedAt:p.priceCheckedAt||p.checkedAt||null
+    }));
+    total+=shop.items.length;
+   }
+  }catch(e){}
+ }
+ if(total){save();renderShops();render();setStatus(total+" Artikel aus deiner bisherigen MarktRadar-Version übernommen. Preise bitte erneut prüfen.","ok");}
+}
 async function restoreFullDatabase(){
  const initialRevision=revision;
  const raw=await readDatabase();
- if(!raw||initialRevision!==revision)return;
+ if(initialRevision!==revision)return;
+ if(!raw){migratePreviousCatalog();return;}
  try{
   const old=JSON.parse(raw);
   applySaved(old);renderShops();render();
   setStatus("Gespeicherte Kataloge aus der Browser-Datenbank geladen.","ok");
- }catch(e){}
+ }catch(e){migratePreviousCatalog();}
 }
 
 function setStatus(message,kind){
