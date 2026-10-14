@@ -79,6 +79,7 @@ async function download(site,raw,maxRedirects=2){
 }
 function category(s){
  const t=clean(s).toLowerCase();
+ if(/^(?:sockel|fußleiste|fussleiste|dämmung|trittschall|unterlage|profil|kleber|reiniger|zubehör)/.test(t))return "Zubehör";
  if(/parkett|massivholzdiele|fertigparkett|schiffsboden/.test(t))return "Parkett";
  if(/laminat/.test(t))return "Laminat";
  if(/vinyl|spc\b|lvt\b|rigid|designboden|klickboden|klickvinyl|klebevinyl/.test(t))return "Vinyl";
@@ -94,7 +95,7 @@ function productName(s){
 }
 function productPath(url){
  const p=new URL(url).pathname;
- return /\/(products?|produkt|artikel|p|pd|item|detail)\//i.test(p)
+ return /\/(products?|produkte?|artikel|p|pd|item|detail)\//i.test(p)
  || /\/[^/]+\.(?:html|htm)$/i.test(p)
  || /\/(laminat|vinylboeden?|parkett|bodenbelaege|designboden|zubehoer)\/[^/]{12,}\/?$/i.test(p);
 }
@@ -177,7 +178,7 @@ function parseProduct(html,site,url){
  $("script,style,footer,nav,noscript").remove();
  const main=$("main").first().length?$("main").first():$("body");
  const text=clean(main.text());
- const type=category([title,ld?.category,ld?.description,text.slice(0,1000)].join(" "));
+ const type=category(title)||category([ld?.category,ld?.description,text.slice(0,650)].join(" "));
  if(!type||!title||title.length<5)return null;
  const characteristics=details(text,title);
  const price=priceInfo(text,ld,characteristics.packM2);
@@ -249,7 +250,7 @@ async function main(event){
    if(!/(?:\.xml(?:\?|$)|\/sitemap|sitemap\.php)/i.test(new URL(url).pathname))return reply({error:"Kein Sitemap-URL"},400);
    const info=sitemapList(text,site),offset=Math.max(0,Math.min(30000,Number(job.offset)||0));
    const chunk=info.urls.slice(offset,offset+300),jobs=[];
-   const urls=info.kind==="page"?chunk.filter(productPath):[];
+   const urls=info.kind==="page"?chunk.filter(u=>productPath(u)||(category(decodeURI(new URL(u).pathname)) && new URL(u).pathname.split("/").filter(Boolean).length>=2 && !/\/collections\/|\/category\/|\/kategorie\//i.test(u))):[];
    if(info.kind==="sitemap")jobs.push(...chunk.map(url=>({type:"map",url})));
    if(offset+300<info.urls.length)jobs.push({type:"map",url,offset:offset+300});
    return reply({jobs,urls,products:[],total:info.urls.length});
@@ -295,3 +296,4 @@ async function main(event){
 exports.handler=async event=>{
  try{return await main(event);}catch(e){return reply({error:clean(e.message||"Abruffehler").slice(0,220)},502);}
 };
+exports.__test={parseSite,permitted,safeIP,category,productName,details,priceInfo,jsonLD,parseProduct,sitemapList,listPage,productPath};
