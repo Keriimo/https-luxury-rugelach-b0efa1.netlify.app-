@@ -148,7 +148,7 @@ function priceInfo(t,structured,packM2){
  if(price==null&&/^(C62|Stück|PCE)$/i.test(offerUnit||"")&&offer&&category(text)==="Zubehör"){
   price=offer;unit="Stück";priceSource="strukturierter Stückpreis";
  }
- const oldMatch=text.slice(0,1800).match(/(?:UVP|statt|Alter Preis)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€\s*(?:\/\s*(?:m²|m2|qm))?/i);
+ const oldMatch=text.slice(0,1800).match(/(?:UVP|statt|Alter Preis)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€\s*(?:\/|pro)\s*(?:m²|m2|qm)/i);
  const oldPrice=price&&oldMatch&&num(oldMatch[1])>price?num(oldMatch[1]):null;
  const promo=/(aktionspreis|sonderangebot|reduziert|sale|restposten)/i.test(text.slice(0,650))?"Aktionshinweis":(oldPrice?"Vergleichspreis":"");
  return {price,unit,priceSource,oldPrice,promotion:promo,
