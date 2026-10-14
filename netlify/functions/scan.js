@@ -14,7 +14,8 @@ const SETTINGS = {
   },
   shop24: {
     host: "laminat-shop24.com",
-    listings: ["https://laminat-shop24.com/collections/all"]
+    listings: ["https://laminat-shop24.com/collections",
+      "https://laminat-shop24.com/collections/all"]
   }
 };
 const clean = x => String(x || "").replace(/\s+/g, " ").trim();
@@ -146,7 +147,14 @@ function directCards(html, shop, pageUrl) {
     const isPage = /(?:[?&](?:page|pagenumber)=\d+|\/paging\/page\d+)/i.test(u);
     if (isPage && (/next/i.test(rel) || /weiter|next|nächste|^\d{1,3}$|→|›/i.test(label))) next.add(u);
   });
-  return {products,productUrls:[...links],next:[...next].slice(0,35)};
+  // On the public category index, discover collections instead of relying on guessed handles.
+  if(shop==="shop24" && new URL(pageUrl).pathname==="/collections"){
+    $('a[href*="/collections/"]').each((_,a)=>{
+      const url=normUrl(new URL($(a).attr("href")||"",pageUrl).href,shop);
+      if(url && /\/collections\/[^/?]+/.test(new URL(url).pathname)) next.add(url);
+    });
+  }
+  return {products,productUrls:[...links],next:[...next].slice(0,50)};
 }
 function parseDetail(html, shop, url) {
   const $ = cheerio.load(html);
