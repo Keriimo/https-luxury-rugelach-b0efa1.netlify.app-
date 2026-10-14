@@ -282,7 +282,7 @@ async function scanShop(shop,restart){
  if(!s||(!s.jobs?.length&&!s.urls?.length)){
   const discovered=await api(shop.url,"discover");
   s={jobs:discovered.jobs||[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:0,other:0,shopifyDone:false};
-  if(shop.url.includes("laminat-shop24.com"))s.jobs.unshift({type:"shopify",page:1});
+  s.jobs.unshift({type:"shopify",page:1});
  }
  const scan={...s,visitedJobs:new Set(s.visitedJobs||[]),visitedUrls:new Set(s.visitedUrls||[]),items:new Map(previous.map(p=>[p.url,p]))};
  const maxJobs=65,maxDetails=250;
