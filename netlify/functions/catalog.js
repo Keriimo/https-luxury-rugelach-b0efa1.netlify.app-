@@ -50,7 +50,10 @@ async function download(site,raw,maxRedirects=2){
   return new Promise((resolve,reject)=>{
     let size=0,parts=[];
     const request=https.get(uri,{
-      lookup:(host,opts,callback)=>callback(null,approved.address,approved.family),
+      lookup:(host,opts,callback)=>{
+        if(opts&&opts.all)callback(null,[{address:approved.address,family:approved.family}]);
+        else callback(null,approved.address,approved.family);
+      },
       servername:uri.hostname,timeout:REQUEST_TIMEOUT,
       headers:{"Accept":"text/html,application/json,application/xml,text/xml;q=0.9,*/*;q=0.2",
         "User-Agent":"MarktRadar/3.0 (+public product price comparison; polite crawl)"}
