@@ -129,7 +129,8 @@ function productJson(html){
  for(const source of scripts.slice(0,10)){
   try{
    const raw=source.replace(/^<script[^>]*>/i,"").replace(/<\/script>$/i,"").trim();
-   const data=JSON.parse(raw),items=[data],seen=0;
+   const data=JSON.parse(raw),items=[data];
+   let seen=0;
    while(items.length&&seen++<50){
     const item=items.shift();
     if(!item||typeof item!=="object")continue;
