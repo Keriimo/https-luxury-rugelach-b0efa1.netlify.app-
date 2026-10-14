@@ -1,378 +1,157 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="de">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>MarktRadar | Laminat DEPOT</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MarktRadar · Laminat DEPOT – Wettbewerbsanalyse</title>
+<meta name="description" content="Wettbewerbsanalysen für Laminat, Vinyl, Parkett, Bioboden und Zubehör. Preisvergleiche und technische Unterschiede.">
 <style>
+:root{--ink:#182338;--accent:#ed2e3c;--muted:#738097;--surface:#fff;--border:#e1e6ef;--base:#f3f5f9;--ok:#0d8c61}
 *{box-sizing:border-box}
-body{margin:0;background:#f3f5f9;color:#182437;font-family:Arial,sans-serif}
-.container{max-width:1250px;margin:auto;padding:24px}
-header{background:#192437;color:white;padding:27px;border-radius:17px}
-.logo{font-size:12px;letter-spacing:2px;color:#ff7c85;font-weight:800}
-h1{font-size:29px;margin:10px 0}
-h2{font-size:17px;margin-top:0}
-.sub{color:#bec8d6;font-size:13px}
-.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:17px 0}
-.card,.panel{background:white;padding:19px;border:1px solid #e1e5ec;border-radius:14px}
-.metric{font-size:28px;font-weight:800;margin:8px 0}
-.small{font-size:12px;color:#748093}
-.panel{margin-bottom:17px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
-input,select,button{padding:11px;border-radius:9px;border:1px solid #d6dce6;font-size:13px}
-input,select{background:white;min-width:0}
-input{flex:1}
-button{cursor:pointer;font-weight:700;background:white}
-.primary{background:#e32e39;border-color:#e32e39;color:white}
-button:disabled{opacity:.55}
-table{border-collapse:collapse;width:100%;font-size:13px;min-width:680px}
-th,td{text-align:left;padding:12px;border-bottom:1px solid #e8ebf0;vertical-align:top}
-th{font-size:11px;color:#718092;text-transform:uppercase}
-.scroll{overflow-x:auto}
-a{color:#bf2435}
-.status{padding:12px;background:#eef2f7;border-radius:9px;margin-top:13px;font-size:13px}
-.good{color:#12875b;font-weight:bold}
-.bad{color:#c52c3b}
-.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
-.shop{padding:14px;border:1px solid #e5e9ee;border-radius:10px}
-.compare{padding:14px;border:1px solid #e5e9ee;border-radius:10px;margin-bottom:10px}
-.compare:hover{background:#f8fafc}
-.note{background:#fff7e8;border:1px solid #f5dfa9;border-radius:9px;padding:12px;font-size:12px}
-@media(max-width:700px){
-.cards{grid-template-columns:1fr 1fr}
-.two{grid-template-columns:1fr}
-.container{padding:10px}
-h1{font-size:23px}
-}
+body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--base);color:var(--ink)}
+.layout{max-width:1320px;margin:0 auto;padding:18px}
+.hero{background:#192437;border-radius:16px;padding:28px 30px;color:#fff}
+.kicker{letter-spacing:2px;font-size:12px;color:#ff7481;font-weight:900}
+h1{font-size:30px;margin:8px 0 4px;letter-spacing:-.7px}
+.hero p{font-size:13px;color:#cad3e0;margin:2px 0}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:0 0 8px}
+.panel{border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:20px;margin-top:16px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+small{font-size:11px;display:block}
+.break{overflow-wrap:anywhere}
+strong{font-weight:750}
+button,input,select{font:inherit;border:1px solid #d5dce8;border-radius:9px;padding:10px 12px}
+button{font-weight:700;cursor:pointer;background:white;color:var(--ink);white-space:nowrap}
+button.primary{background:var(--accent);color:white;border-color:var(--accent)}
+button.ghost{border:0;background:transparent;color:#b23b47}
+button:disabled{opacity:.55;cursor:default}
+button.active{background:var(--accent);border-color:var(--accent);color:white}
+input,select{color:var(--ink);background:#fff;min-width:0;max-width:100%}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
+.shop-entry{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #edf0f4}
+.shop-entry:last-child{border-bottom:0}
+.shop-data{flex:1;min-width:145px;display:flex;flex-direction:column;gap:3px}
+.inputs{display:grid;grid-template-columns:1fr 1.5fr auto;gap:10px;align-items:end;margin-top:16px}
+.inputs input{width:100%}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.notice{background:#f0f3f7;padding:12px;border-radius:10px;font-size:12px;color:#374760;margin:12px 0 0}
+#message[data-kind=warning]{background:#fff4df;color:#775115}
+#message[data-kind=ok]{background:#e5f6ed;color:#155a38}
+#progress{background:#eaf0fc;color:#244b7b}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white}
+.metric-val{font-size:31px;display:block;letter-spacing:-.6px;margin-top:4px}
+.filters{display:grid;grid-template-columns:minmax(220px,2.4fr) repeat(4,minmax(110px,1fr));gap:10px}
+.filters input,.filters select{width:100%}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:950px}
+th,td{padding:11px;text-align:left;border-bottom:1px solid #e8edf3;vertical-align:top}
+th{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#75839a}
+td{font-size:12px}
+td small{margin-top:4px}
+.price{font-weight:750}
+a{color:#c51f32;text-decoration:underline}
+.pair,.offer{padding:16px 4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pair-body{display:flex;flex:1;flex-direction:column;gap:6px;min-width:220px}
+.green{color:var(--ok)}
+.detail-box{width:100%;border-radius:10px;padding:10px;background:#f7f9fc}
+.detail-box table{min-width:560px}
+.detail-box[hidden],[hidden]{display:none!important}
+.empty{color:var(--muted);padding:22px;text-align:center;background:#f8fafc;border-radius:10px}
+.offer .price{display:flex;flex-direction:column}
+.foot{font-size:11px;color:var(--muted);margin:16px 0;padding:5px}
+.badge{font-size:11px;color:#80e1aa;background:#294532;border-radius:20px;padding:5px 9px}
+@media(max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters input{grid-column:span 2}.inputs{grid-template-columns:1fr 1fr}.inputs .add{grid-column:span 2}.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.layout{padding:8px}.hero{padding:20px}h1{font-size:24px}.inputs,.filters{grid-template-columns:1fr}.inputs .add,.filters input{grid-column:span 1}.shop-entry{flex-wrap:wrap}.shop-entry .shop-data{min-width:calc(100% - 40px)}.panel{padding:14px}.metric-val{font-size:25px}}
 </style>
+<script src="/app.js" defer></script>
 </head>
 <body>
-<main class="container">
-<header>
-<div class="logo">LAMINAT DEPOT · MARKTRADAR</div>
+<main class="layout">
+<header class="hero">
+<div class="row between">
+<div class="kicker">LAMINAT DEPOT · MARKTRADAR</div>
+<span class="badge">ONLINE-KATALOG</span>
+</div>
 <h1>Wettbewerbsanalyse</h1>
-<div class="sub">Laminat · Vinyl · Parkett · Zubehör · Preis pro m²</div>
+<p>Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²</p>
 </header>
-
-<section class="panel" style="margin-top:18px">
-<div class="row">
-<div style="flex:1">
-<h2>Automatischer Wettbewerbsvergleich</h2>
-<div class="small">Öffentliche Produktdaten der Shops prüfen</div>
+<section class="panel" aria-label="Shopverwaltung">
+<div class="row between">
+<div><h2>Wettbewerber verwalten</h2><small class="muted">Shop-Links hinzufügen, bearbeiten und für den Vergleich auswählen</small></div>
+<small id="selectionCount" class="muted">2 Shops ausgewählt</small>
 </div>
-<button class="primary" id="scan">Preise abrufen</button>
+<div id="shopList"></div>
+<div class="inputs">
+<div><label for="newName">Name des Shops</label><input id="newName" placeholder="z. B. Bodenfachmarkt" maxlength="70"></div>
+<div><label for="newUrl">Adresse des Online-Shops</label><input id="newUrl" placeholder="https://www.beispielshop.de"></div>
+<button id="addButton" class="primary add">+ Shop hinzufügen</button>
 </div>
-<div class="two" style="margin-top:15px">
-<div class="shop">
-<strong>Laminat DEPOT</strong>
-<p class="small" id="status1">Noch nicht geprüft</p>
-<a href="https://laminatdepot.de" target="_blank">Shop öffnen ↗</a>
+<div class="actions" style="margin-top:16px">
+<button id="scanButton" class="primary">Ausgewählte Shops prüfen / fortsetzen</button>
+<button id="resetButton">Scan neu starten</button>
+<button id="exportButton">Daten als JSON sichern</button>
 </div>
-<div class="shop">
-<strong>Laminat-Shop24</strong>
-<p class="small" id="status2">Noch nicht geprüft</p>
-<a href="https://laminat-shop24.com" target="_blank">Shop öffnen ↗</a>
-</div>
-</div>
-<div class="status" id="progress" style="display:none"></div>
-<div class="status" id="message">
-Bereit. Für den automatischen Abruf muss noch die Netlify-Funktion eingerichtet werden.
-</div>
+<div id="progress" class="notice" hidden aria-live="polite"></div>
+<div id="message" class="notice" aria-live="polite">Bereit. Aktiviere die Shops, die du vergleichen möchtest, und starte die Katalogsuche.</div>
 </section>
-
-<div class="cards">
-<div class="card"><div class="small">Produkte</div><div class="metric" id="total">0</div></div>
-<div class="card"><div class="small">Laminat DEPOT</div><div class="metric" id="depot">0</div></div>
-<div class="card"><div class="small">Laminat-Shop24</div><div class="metric" id="shop24">0</div></div>
-<div class="card"><div class="small">Vergleichsvorschläge</div><div class="metric" id="pairs">0</div></div>
-</div>
-
+<div id="metrics" class="metrics"></div>
 <section class="panel">
 <h2>Produkte suchen und filtern</h2>
-<div class="row">
-<input id="search" placeholder="Produktnamen suchen, z. B. Eiche, Vinyl oder Parkett">
-<select id="category">
+<div class="filters">
+<input id="productSearch" placeholder="Produktname, Artikelnummer oder Marke suchen" aria-label="Produkt suchen">
+<select id="category" aria-label="Kategorie">
 <option value="">Alle Kategorien</option>
-<option>Laminat</option><option>Vinyl</option>
-<option>Parkett</option><option>Zubehör</option>
+<option>Laminat</option><option>Vinyl</option><option>Parkett</option>
+<option>Bioboden &amp; Kork</option><option>Teppich</option><option>PVC</option>
+<option>Sonstige Bodenbeläge</option><option>Zubehör</option>
 </select>
-<select id="promotion"><option value="">Alle Preise</option><option value="action">Werbepreise / Aktionen</option><option value="regular">Ohne bestätigte Aktion</option></select>
-<select id="shop">
-<option value="">Beide Shops</option>
-<option value="depot">Laminat DEPOT</option>
-<option value="shop24">Laminat-Shop24</option>
+<select id="promotions" aria-label="Aktion">
+<option value="">Alle Preise</option>
+<option value="yes">Werbepreise / Aktionen</option>
+<option value="no">Ohne erkannte Aktion</option>
 </select>
-<select id="limit">
+<select id="limit" aria-label="Anzahl Produkte">
 <option value="10">Top 10</option>
-<option value="20">Top 20</option>
+<option value="20" selected>Top 20</option>
 <option value="50">Top 50</option>
-<option value="10000">Alle Produkte</option>
+<option value="100">Top 100</option>
+<option value="5000">Alle erfassten</option>
+</select>
+<select id="sort" aria-label="Sortierung">
+<option value="price">Günstigste zuerst</option>
+<option value="name">Produktname</option>
+<option value="new">Neueste Prüfung</option>
 </select>
 </div>
 </section>
-
 <section class="panel">
-<div class="row" style="margin-bottom:15px">
-<button id="tab1" class="primary">Produktliste</button>
-<button id="tab2">Technischer Vergleich</button>
+<div class="tabs" style="margin-bottom:16px">
+<button id="productsTab" class="active">Produktliste</button>
+<button id="comparisonTab">Technischer Vergleich</button>
+<button id="offersTab">Werbepreise</button>
 </div>
-<div id="productsView">
-<h2>Erfasste Preise pro m² (nicht garantiert vollständig)</h2>
-<div class="scroll">
-<table>
-<thead><tr>
-<th>Produkt</th><th>Shop</th><th>Kategorie</th>
-<th>Stärke</th><th>Nutzschicht</th>
-<th>Preis €/m²</th><th>Aktion</th><th>Quelle</th>
-</tr></thead>
-<tbody id="productRows"></tbody>
-</table>
+<div id="productsSection">
+<h2>Erfasste Produkte und €/m²-Preise</h2>
+<div id="tableHolder" class="table-wrap"></div>
 </div>
+<div id="comparisonSection" hidden>
+<h2>Vergleichsvorschläge mit technischen Unterschieden</h2>
+<p class="notice" style="margin:0 0 12px">Vorschläge sind anhand von Namen und Produktmerkmalen berechnet. Nur identische Herstellerartikel beziehungsweise hinreichend gleiche Eigenschaften dürfen als direkt vergleichbar gelten.</p>
+<div id="comparisonHolder"></div>
 </div>
-<div id="comparisonView" style="display:none">
-<h2>Vergleichbare Bodenbeläge</h2>
-<div class="note">
-Die Zuordnung ist ein Vorschlag anhand technischer Eigenschaften.
-Unterschiedliche Böden dürfen nicht automatisch als gleichwertig gelten.
-</div>
-<div id="comparisonRows" style="margin-top:15px"></div>
-<div id="details"></div>
+<div id="offersSection" hidden>
+<h2>Erkannte Werbepreise, Aktionen und Angebote</h2>
+<p class="notice" style="margin:0 0 12px">Ein Aktionshinweis beweist nicht automatisch eine echte Preisreduzierung. Vergleichspreise sind nur zuverlässig, wenn sie für dieselbe Verkaufseinheit gelten.</p>
+<div id="offersHolder"></div>
 </div>
 </section>
-<p class="small">MarktRadar-Prototyp. Scans können wegen Shop-Sperren oder Zeitlimits unvollständig sein. Als Aktion markierte Produkte sind lediglich automatisch erkannte Hinweise. Keine erfundenen Live-Preise. Alle Daten und Produktmerkmale vor Verwendung im Originalshop prüfen. Noch keine externe KI angebunden.</p>
+<p class="foot">MarktRadar läuft ohne Installation im Browser. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert.</p>
 </main>
-<script>
-const $=id=>document.getElementById(id);
-let products=[];
-let tab=1;
-const money=n=>n==null?"Nicht erkannt":n.toLocaleString("de-DE",{style:"currency",currency:"EUR"});
-const safe=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-const sourceName=s=>s==="depot"?"Laminat DEPOT":"Laminat-Shop24";
-function filtered(){
- const q=$("search").value.toLowerCase();
- const c=$("category").value;
- const s=$("shop").value;
- const promo=$("promotion").value;
- return products.filter(p=>
-  (promo==="action"?Boolean(p.promotion):promo==="regular"?!p.promotion:true)&&
-  p.name.toLowerCase().includes(q)&&
-  (!c||p.category===c)&&(!s||p.shop===s)
- );
-}
-function matching(){
- const a=products.filter(p=>p.shop==="depot");
- const b=products.filter(p=>p.shop==="shop24");
- const results=[];
- const used=new Set();
- for(const x of a){
-  let best=null,points=0;
-  for(const y of b){
-   if(x.price==null||y.price==null||x.category!==y.category||used.has(y.url))continue;
-   const words=s=>new Set(s.toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w=>w.length>4));
-   const wx=words(x.name),wy=words(y.name);
-   let score=[...wx].filter(w=>wy.has(w)).length*2;
-   if(x.thickness!=null&&y.thickness!=null){
-    if(Math.abs(x.thickness-y.thickness)<0.5)score+=3;
-    else if(Math.abs(x.thickness-y.thickness)<=1)score+=1;
-   }
-   if(x.wear!=null&&y.wear!=null&&Math.abs(x.wear-y.wear)<0.06)score+=2;
-   if(score>points){points=score;best=y}
-  }
-  if(best&&points>=3){results.push({a:x,b:best,score:points});used.add(best.url)}
- }
- return results.sort((x,y)=>y.score-x.score);
-}
-function render(){
- $("total").textContent=products.length;
- $("depot").textContent=products.filter(x=>x.shop==="depot").length;
- $("shop24").textContent=products.filter(x=>x.shop==="shop24").length;
- const matches=matching();
- $("pairs").textContent=matches.length;
- const shown=filtered().sort((a,b)=>Number(a.price==null)-Number(b.price==null)).slice(0,Number($("limit").value));
- $("productRows").innerHTML=shown.length?shown.map(p=>`
- <tr>
- <td><b>${safe(p.name)}</b></td>
- <td>${sourceName(p.shop)}</td>
- <td>${safe(p.category)}</td>
- <td>${p.thickness??"–"} ${p.thickness!=null?"mm":""}</td>
- <td>${p.wear??"–"} ${p.wear!=null?"mm":""}</td>
- <td><b>${money(p.price)}</b>${p.oldPrice?`<div class="small">Referenz: ${money(p.oldPrice)}</div>`:""}</td>
- <td>${safe(p.promotion||"–")}${p.discountPct!=null?` (${p.discountPct} %)`:""}</td>
- <td><a href="${safe(p.url)}" target="_blank" rel="noopener">Prüfen ↗</a></td>
- </tr>`).join(""):"<tr><td colspan='8'>Keine Produkte verfügbar.</td></tr>";
- const q=$("search").value.toLowerCase(),c=$("category").value;
- const visible=matches.filter(x=>
- (!c||x.a.category===c)&&
- (!q||x.a.name.toLowerCase().includes(q)||x.b.name.toLowerCase().includes(q))
- ).slice(0,Number($("limit").value));
- $("comparisonRows").innerHTML=visible.length?visible.map((x,i)=>`
- <div class="compare">
- <strong>${safe(x.a.name)}</strong>
- <p class="small">↔ ${safe(x.b.name)}</p>
- <div>${money(x.a.price)} / ${money(x.b.price)} je m²</div>
- <p class="${x.a.price<=x.b.price?"good":"bad"}">
- ${x.a.price<x.b.price?"Laminat DEPOT günstiger":x.a.price>x.b.price?"Laminat-Shop24 günstiger":"Gleicher Preis"}
- </p>
- <button data-idx="${i}">Eigenschaften vergleichen</button>
- </div>`).join(""):"<p>Keine ausreichend ähnlichen Produkte gefunden.</p>";
- document.querySelectorAll("[data-idx]").forEach(btn=>{
-  btn.onclick=()=>showDetails(visible[Number(btn.dataset.idx)]);
- });
- $("details").innerHTML="";
-}
-function showDetails(pair){
- const a=pair.a,b=pair.b;
- const field=(name,key,unit="")=>`
- <tr><td>${name}</td><td>${a[key]??"Nicht erfasst"} ${a[key]!=null?unit:""}</td>
- <td>${b[key]??"Nicht erfasst"} ${b[key]!=null?unit:""}</td></tr>`;
- $("details").innerHTML=`
- <h2>Technische Unterschiede</h2>
- <div class="scroll"><table>
- <tr><th>Eigenschaft</th><th>Laminat DEPOT</th><th>Laminat-Shop24</th></tr>
- <tr><td>Preis/m²</td><td>${money(a.price)}</td><td>${money(b.price)}</td></tr>
- ${field("Stärke","thickness","mm")}
- ${field("Nutzschicht","wear","mm")}
- ${field("Nutzungsklasse","nk")}
- </table></div>
- <p class="note">Preisunterschied: ${money(Math.abs(a.price-b.price))}/m².
- Eine größere Materialstärke allein bedeutet nicht automatisch bessere Qualität.
- Fehlende Angaben sind kein Nachteil des Produktes.</p>
- <a href="${safe(a.url)}" target="_blank" rel="noopener">DEPOT-Produkt ↗</a>
- &nbsp;|&nbsp;
- <a href="${safe(b.url)}" target="_blank" rel="noopener">Shop24-Produkt ↗</a>`;
-}
-async function scan(){
- $("scan").disabled=true;
- $("scan").textContent="Daten werden geprüft …";
- $("message").textContent="Produktseiten werden abgerufen.";
- products=[];
- const result=await Promise.all(["depot","shop24"].map(async(shop)=>{
-  const target=shop==="depot"?"status1":"status2";
-  try{
-   const res=await fetch("/.netlify/functions/scan?shop="+shop);
-   const data=await res.json();
-   if(!res.ok||!Array.isArray(data.products))throw new Error(data.error||"Abruf fehlgeschlagen");
-   $(target).textContent=data.products.length+" Produkte erfasst · "+new Date(data.checkedAt).toLocaleString("de-DE");
-   products.push(...data.products);
-   return data.products.length>0;
-  }catch(e){
-   $(target).textContent="Abruf nicht verfügbar";
-   return false;
-  }
- }));
- $("message").textContent=result.every(Boolean)?
- "Abruf beendet. Bitte Produktdaten anhand der Quellen prüfen.":
- "Mindestens ein Shop konnte nicht vollständig ausgelesen werden. Es werden keine Preise geschätzt.";
- $("scan").disabled=false;
- $("scan").textContent="Preise erneut abrufen";
- render();
-}
-$("scan").onclick=scan;
-["search","category","shop","limit","promotion"].forEach(id=>
- $(id).addEventListener(id==="search"?"input":"change",render)
-);
-$("tab1").onclick=()=>{
- tab=1;$("productsView").style.display="block";
- $("comparisonView").style.display="none";
- $("tab1").className="primary";$("tab2").className="";
-};
-$("tab2").onclick=()=>{
- tab=2;$("productsView").style.display="none";
- $("comparisonView").style.display="block";
- $("tab2").className="primary";$("tab1").className="";
-};
-render();
-
-let catalogBusy=false;
-const STORE_PREFIX="marktradar:v2:";
-const catalogs={depot:[],shop24:[]};
-function updateProgress(message){$("progress").style.display="block";$("progress").textContent=message;}
-function safeStore(shop,data){try{localStorage.setItem(STORE_PREFIX+shop,JSON.stringify(data));}catch(e){}}
-function catalogRender(){
- products=[...catalogs.depot,...catalogs.shop24];
- render();
-}
-function restore(){
- for(const shop of ["depot","shop24"]){
-  try{
-   const arr=JSON.parse(localStorage.getItem(STORE_PREFIX+shop)||"[]");
-   if(Array.isArray(arr))catalogs[shop]=arr;
-  }catch(e){}
- }
- if(products.length===0 && (catalogs.depot.length||catalogs.shop24.length)){catalogRender();$("message").textContent="Zuletzt gespeicherte Ergebnisse. Bitte für aktuelle Preise erneut abrufen.";}
-}
-async function api(shop,action,payload){
- const address="/.netlify/functions/scan?shop="+shop+"&action="+action;
- const result=await fetch(address,payload?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}:{});
- const data=await result.json();
- if(!result.ok)throw Error(data.error||"HTTP "+result.status);
- return data;
-}
-async function catalogScan(shop){
- const start=await api(shop,"discover");
- const queue=[...start.jobs],seenJobs=new Set(),urlQueue=[],seenUrls=new Set(),items=new Map();
- let pages=0,done=0,failures=0,withoutPrice=0,networkErrors=0,unclassified=0;
- const scanLimit=800, maxPages=75;
- const previous=catalogs[shop].slice();
- const cache=()=>{if(items.size===0 && previous.length>0 && failures>0)return;catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
- const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Artikel erkannt, "+[...items.values()].filter(p=>p.price!=null).length+" €/m²-Preise, "+withoutPrice+" ohne eindeutigen Preis, "+networkErrors+" Abruffehler, "+unclassified+" ohne Kategorie, "+urlQueue.length+" wartend");
- while(((queue.length>0 && pages<maxPages) || urlQueue.length>0) && done<scanLimit){
-  if(queue.length && pages<maxPages){
-   const job=queue.shift(),key=job.type+job.url+(job.offset||"");
-   if(!seenJobs.has(key)){
-    seenJobs.add(key);pages++;
-    try{
-     const data=await api(shop,"expand",job);
-     for(const next of data.jobs||[])if(!seenJobs.has(next.type+next.url+(next.offset||"")))queue.push(next);
-     for(const link of data.urls||[])if(!seenUrls.has(link)){seenUrls.add(link);urlQueue.push(link);}
-     for(const p of data.products||[])if(p.url && !items.has(p.url))items.set(p.url,p);
-    }catch(e){failures++;}
-   }
-  }
-  if(urlQueue.length && (queue.length===0 || pages%3===0 || urlQueue.length>80)){
-   const chunk=urlQueue.splice(0,Math.min(5,scanLimit-done));
-   try{
-    const data=await api(shop,"batch",{urls:chunk});
-    for(const p of data.products||[])if(p.url)items.set(p.url,p);
-    withoutPrice+=(data.stats?.withoutPrice||0);
-    networkErrors+=(data.stats?.failedRequests||0);
-    unclassified+=(data.stats?.unclassified||0);
-    failures+=(data.errors||[]).length;
-   }catch(e){failures+=chunk.length;networkErrors+=chunk.length;}
-   done+=chunk.length;
-   await new Promise(resolve=>setTimeout(resolve,180));
-  }
-  progress();
-  if((pages+done)%10===0 && items.size)cache();
- }
- cache();
- const incomplete=queue.length>0||urlQueue.length>0||failures>0||pages>=maxPages;
- const priced=[...items.values()].filter(p=>p.price!=null).length;
- $(shop==="depot"?"status1":"status2").textContent=items.size+" Artikel, davon "+priced+" mit €/m²-Preis · "+new Date().toLocaleString("de-DE")+(incomplete?" · Erfassung unvollständig":"");
- return {count:items.size||((failures>0)?previous.length:0),priced,incomplete,failures,withoutPrice,networkErrors,unclassified};
-}
-scan=async function(){
- if(catalogBusy)return;
- catalogBusy=true;$("scan").disabled=true;$("scan").textContent="Katalog wird geprüft …";
- const notes=[];
- try{
-  for(const shop of ["depot","shop24"]){
-   $("message").textContent="Katalogsuche läuft: "+sourceName(shop)+". Bitte diese Registerkarte geöffnet lassen.";
-   try{
-    const result=await catalogScan(shop);
-    notes.push(sourceName(shop)+": "+result.count+" Artikel, "+result.priced+" Preise erkannt"+(result.incomplete?" (nicht vollständig)":""));
-   }catch(e){
-    notes.push(sourceName(shop)+": Abruf fehlgeschlagen.");
-    $(shop==="depot"?"status1":"status2").textContent="Abruf fehlgeschlagen";
-   }
-  }
-  $("message").textContent=notes.join(" · ")+". Quellen vor Vertriebsentscheidungen prüfen.";
- }finally{catalogBusy=false;$("scan").disabled=false;$("scan").textContent="Katalog erneut prüfen";}
-};
-$("scan").onclick=scan;
-$("scan").textContent="Gesamten Katalog prüfen";
-restore();
-
-</script>
 </body>
 </html>
