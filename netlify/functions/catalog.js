@@ -263,8 +263,13 @@ function reply(result,code=200){
 }
 async function main(event){
  const input=event.httpMethod==="POST"?JSON.parse(event.body||"{}"):event.queryStringParameters||{};
- const site=parseSite(input.site);
  const action=input.action||"discover";
+ if(action==="health")return reply({ok:true,version:"4.1.4",name:"MarketRadar Generic Catalog"});
+ const site=parseSite(input.site);
+ if(action==="probe"){
+  const result=await download(site,site.start);
+  return reply({ok:true,site:site.home,bytes:result.text.length,type:result.text.slice(0,100).includes("<")?"HTML":"Other",version:"4.1.4"});
+ }
  if(action==="discover"){
   const jobs=[{type:"list",url:site.start},{type:"map",url:site.home+"sitemap.xml"}];
   if(site.start!==site.home)jobs.push({type:"list",url:site.home});
