@@ -302,6 +302,9 @@ async function scanShop(shop,restart){
       await api(shop.url,"expand",{job});
      for(const p of data.products||[])mergeItem(scan.items,p);
      if(job.type==="shopify"){
+      for(const p of data.products||[]){
+       if(p.url&&!scan.visitedUrls.has(p.url)&&!scan.urls.includes(p.url))scan.urls.push(p.url);
+      }
       if(data.hasMore&&job.page<8)scan.jobs.push({type:"shopify",page:job.page+1});
      }else{
       for(const j of data.jobs||[])scan.jobs.push(j);
