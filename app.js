@@ -118,7 +118,8 @@ async function restoreFullDatabase(){
  try{
   const old=JSON.parse(raw);
   applySaved(old);renderShops();render();
-  setStatus("Gespeicherte Kataloge aus der Browser-Datenbank geladen.","ok");
+  migratePreviousCatalog();
+  if(!state.shops.some(x=>x.items.length))setStatus("Browser-Datenbank geladen, aber bislang keine Produkte gespeichert. Nutze „Verbindung prüfen“.","normal");
  }catch(e){migratePreviousCatalog();}
 }
 
