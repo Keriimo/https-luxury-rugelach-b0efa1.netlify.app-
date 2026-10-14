@@ -373,9 +373,9 @@ function mergeItem(map,p){
  map.set(p.url,next);
 }
 function scanStats(shop,scan){
- shop.items=[...scan.items.values()].slice(0,5000);
- shop.scan={jobs:scan.jobs.slice(0,1500),urls:scan.urls.slice(0,3000),
-  visitedJobs:[...scan.visitedJobs].slice(-3500),visitedUrls:[...scan.visitedUrls].slice(-5000),
+ shop.items=[...scan.items.values()].slice(0,12000);
+ shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
+  visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
   pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,shopifyDone:scan.shopifyDone,checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
 }
