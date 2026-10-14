@@ -1,0 +1,13 @@
+
+{
+  "name": "marktradar",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Wettbewerbsanalyse für Bodenbeläge",
+  "dependencies": {
+    "cheerio": "1.0.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
