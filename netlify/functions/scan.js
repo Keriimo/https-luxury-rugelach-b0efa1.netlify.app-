@@ -88,13 +88,17 @@ function pricing(raw, shop) {
   const specific = t.match(/(?:Komplett-Set|Aktionspreis|Angebotspreis)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€\s*\/\s*(?:m²|m2|qm)/i)
     || t.match(/Preis\s*(?:pro\s*)?(?:m²|m2|qm)\s*:?\s*\|?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i);
   const otherFormats = [
-    /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–-]?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
+    /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–-]*\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
     /(?:m²|m2|qm)\s*[-:]?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i,
     /(\d{1,4}(?:[.,]\d{2}))\s*€\s*(?:je|pro)\s*(?:m²|m2|qm)/i
   ];
   const alternative = otherFormats.map(rx=>t.match(rx)).find(Boolean);
   const price = specific ? numeric(specific[1]) : (hits[0] || (alternative ? numeric(alternative[1]) : null));
-  const oldHit = t.match(/(?:statt|UVP)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€/i);
+  // Compare only unit prices within the same short product-price context.
+  // A package UVP is not a meaningful reference for a square-meter price.
+  const nearby = specific || alternative;
+  const closeContext = nearby ? t.slice((nearby.index || 0) + nearby[0].length,(nearby.index || 0) + nearby[0].length + 65) : "";
+  const oldHit = closeContext.match(/(?:statt|UVP)\s*:?\s*(\d{1,4}(?:[.,]\d{2}))\s*€(?:\s*\/\s*(?:m²|m2|qm))?/i);
   const oldPrice = oldHit && price && numeric(oldHit[1]) > price ? numeric(oldHit[1]) : null;
   const action = /\bAKTIONS-Preis\b|\bAktionspreis\b/i.test(t.slice(0,550)) ? "Aktion"
     : /(?:Restposten|BodenOUTLET)/i.test(t.slice(0,400)) ? "Restposten"
