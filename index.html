@@ -315,7 +315,7 @@ async function catalogScan(shop){
  const scanLimit=1200, maxPages=75;
  const cache=()=>{catalogs[shop]=[...items.values()];safeStore(shop,catalogs[shop]);catalogRender();};
  const progress=()=>updateProgress(sourceName(shop)+": "+done+" Produktseiten geprüft, "+items.size+" Produkte mit €/m²-Preis, "+urlQueue.length+" wartend, "+pages+" Katalogseiten, "+failures+" Fehler");
- while((queue.length || urlQueue.length) && done<scanLimit && pages<maxPages+1){
+ while(((queue.length>0 && pages<maxPages) || urlQueue.length>0) && done<scanLimit){
   if(queue.length && pages<maxPages){
    const job=queue.shift(),key=job.type+job.url+(job.offset||"");
    if(!seenJobs.has(key)){
