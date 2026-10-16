@@ -6,11 +6,11 @@
 <title>MarktRadar · Laminat DEPOT – Wettbewerbsanalyse</title>
 <meta name="description" content="Wettbewerbsanalyse für Laminat, Vinyl/Rigid-Vinyl und Parkett mit nachvollziehbaren €/m²-Preisen und technischen Produktvergleichen.">
 <style>
-:root{--ink:#17243a;--accent:#e5233f;--muted:#66758b;--surface:#fff;--border:#e1e6ef;--base:#f2f4f7;--ok:#0c8c62;--hero:#15233a}
+:root{--ink:#17243a;--accent:#e5233f;--muted:#66758b;--surface:#fff;--border:#e1e6ef;--base:#f2f4f7;--ok:#0c8c62;--hero:#15233a;--font:system-ui,-apple-system,"Segoe UI",Arial,sans-serif;--font-size:14px;--radius:14px;--padding:20px;--page-width:1320px;--shadow:0 2px 8px rgba(24,35,56,.025)}
 *{box-sizing:border-box}
-body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--base);color:var(--ink)}
-.layout{max-width:1320px;margin:0 auto;padding:18px}
-.hero{background:var(--hero);border-radius:18px;padding:28px 32px;color:#fff;box-shadow:0 8px 28px rgba(21,35,58,.09);position:relative;overflow:hidden}
+body{margin:0;font:var(--font-size)/1.48 var(--font);background:var(--base);color:var(--ink)}
+.layout{max-width:var(--page-width);margin:0 auto;padding:18px}
+.hero{background:var(--hero);border-radius:var(--radius);padding:28px 32px;color:#fff;box-shadow:0 8px 28px rgba(21,35,58,.09);position:relative;overflow:hidden}
 .hero:after{content:"";width:260px;height:260px;border:1px solid rgba(255,255,255,.08);border-radius:50%;position:absolute;right:-90px;top:-130px;pointer-events:none}
 .hero>*{position:relative;z-index:1}
 .hero h1{font-size:34px}
@@ -34,7 +34,7 @@ h1{font-size:30px;margin:8px 0 4px;letter-spacing:-.7px}
 .hero p{font-size:13px;color:#cad3e0;margin:2px 0}
 h2{font-size:18px;margin:0 0 10px}
 h3{font-size:15px;margin:0 0 8px}
-.panel{border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:20px;margin-top:16px}
+.panel{border:1px solid var(--border);background:var(--surface);border-radius:var(--radius);padding:var(--padding);margin-top:16px;box-shadow:var(--shadow)}
 .row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .between{justify-content:space-between}
 .muted{color:var(--muted)}
@@ -63,12 +63,12 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 #message[data-kind=ok]{background:#e5f6ed;color:#155a38}
 #progress{background:#eaf0fc;color:#244b7b}
 .metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
-.metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white;box-shadow:0 2px 8px rgba(24,35,56,.025)}
+.metric-card{border:1px solid var(--border);border-radius:var(--radius);padding:18px;background:var(--surface);box-shadow:var(--shadow)}
 .metric-card small{font-size:12px}
 .section-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:2px 0 13px}
 .section-intro h2{margin-bottom:3px}
 .best-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-.best-card{border:1px solid var(--border);border-radius:13px;background:#fff;padding:16px;min-width:0}
+.best-card{border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);padding:16px;min-width:0;box-shadow:var(--shadow)}
 .best-card strong{display:block;font-size:24px;line-height:1.3;margin:8px 0 4px}
 .best-card .name{font-size:12px;color:var(--ink);overflow-wrap:anywhere}
 .best-card .muted{font-size:11px}
@@ -83,6 +83,13 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 .editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
 .editor-grid input{width:100%}
 .editor-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.auto-panel{margin-top:16px;border:1px solid var(--border);border-radius:var(--radius);padding:14px;background:var(--base)}
+.auto-header{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+.auto-switch{display:flex;align-items:center;gap:9px;margin:0;font-size:14px;cursor:pointer}
+.auto-switch input{width:19px;height:19px;accent-color:var(--accent)}
+.auto-settings{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.auto-settings label{margin:0}
+.auto-settings select{min-width:170px}
 .editor-note{font-size:12px;color:var(--muted)}
 .section-note{color:var(--muted);font-size:12px}
 .pair-picker-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}
@@ -135,7 +142,7 @@ a{color:#c51f32;text-decoration:underline}
 <header id="hero" class="hero">
 <div class="row between">
 <div class="hero-brand"><img id="brandLogo" alt="Dein Markenlogo" hidden><div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div></div>
-<div class="hero-tools"><span class="badge">Version 5.8 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-tools"><span class="badge">Version 5.9 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
@@ -154,12 +161,47 @@ a{color:#c51f32;text-decoration:underline}
   <div><label for="editorTheme">Farbe Kopfbereich</label><input type="color" id="editorTheme" value="#15233a"></div>
   <div><label for="editorBackground">Seitenhintergrund</label><input type="color" id="editorBackground" value="#f2f4f7"></div>
   <div><label for="editorTextColor">Textfarbe</label><input type="color" id="editorTextColor" value="#17243a"></div>
+  <div><label for="editorCardColor">Kartenhintergrund</label><input type="color" id="editorCardColor" value="#ffffff"></div>
+  <div><label for="editorBorderColor">Rahmenfarbe</label><input type="color" id="editorBorderColor" value="#e1e6ef"></div>
+  <div><label for="editorPreset">Designvorlage</label>
+   <select id="editorPreset">
+    <option value="">Eigene Einstellung</option>
+    <option value="depot">DEPOT-Rot & Dunkelblau</option>
+    <option value="midnight">Mitternachtsblau</option>
+    <option value="light">Minimalistisch hell</option>
+    <option value="forest">Grün & Anthrazit</option>
+   </select>
+  </div>
+  <div><label for="editorFont">Schriftart</label>
+   <select id="editorFont"><option value="system">Modern / System</option><option value="arial">Arial</option>
+    <option value="georgia">Georgia</option><option value="verdana">Verdana</option></select>
+  </div>
+  <div><label for="editorFontSize">Schriftgröße</label>
+   <select id="editorFontSize"><option value="13">Kompakt 13 px</option><option value="14">Standard 14 px</option>
+    <option value="16">Groß 16 px</option><option value="18">Sehr groß 18 px</option></select>
+  </div>
+  <div><label for="editorDensity">Abstände</label>
+   <select id="editorDensity"><option value="compact">Kompakt</option><option value="normal">Normal</option>
+    <option value="relaxed">Großzügig</option></select>
+  </div>
+  <div><label for="editorRadius">Ecken der Karten</label>
+   <select id="editorRadius"><option value="4">Eckig</option><option value="12">Leicht rund</option>
+    <option value="20">Stark gerundet</option><option value="28">Sehr rund</option></select>
+  </div>
+  <div><label for="editorWidth">Seitenbreite</label>
+   <select id="editorWidth"><option value="1020">Schmal</option><option value="1320">Standard</option>
+    <option value="1600">Breit</option><option value="1920">Extra breit</option></select>
+  </div>
+  <div><label for="editorCards">Schatten an Karten</label>
+   <select id="editorCards"><option value="soft">Dezent</option>
+    <option value="flat">Ohne Schatten</option><option value="strong">Deutlich</option></select>
+  </div>
   <div style="grid-column:1/-1"><label for="editorLogo">Eigenes Logo (PNG, JPG oder WebP, max. 200 KB)</label><input id="editorLogo" type="file" accept="image/png,image/jpeg,image/webp">
-   <div class="logo-preview"><img id="editorLogoPreview" alt="Logovorschau" hidden><button id="removeLogo" type="button">Logo entfernen</button><span class="editor-note">Bitte nur Logos verwenden, die du nutzen darfst.</span></div>
+   <div class="logo-preview"><img id="editorLogoPreview" alt="Logovorschau" hidden><button id="removeLogo" type="button">Logo sofort entfernen</button><span class="editor-note">Bitte nur Logos verwenden, die du nutzen darfst.</span></div>
   </div>
  </div>
  <div class="editor-actions" style="margin-top:14px">
-  <button id="editorSave" class="primary">Design speichern</button>
+  <button id="editorSave" class="primary">Design speichern</button><button id="editorPreview" type="button">Vorschau anzeigen</button>
   <button id="editorReset" type="button">Standard wiederherstellen</button>
   <button id="editorExport" type="button">Design exportieren</button>
   <label class="file-label" for="editorImport">Design importieren (JSON)</label><input type="file" id="editorImport" accept=".json,application/json">
@@ -184,6 +226,21 @@ a{color:#c51f32;text-decoration:underline}
 <div><label for="newName">Name des Shops</label><input id="newName" placeholder="z. B. Bodenfachmarkt" maxlength="70"></div>
 <div><label for="newUrl">Adresse des Online-Shops</label><input id="newUrl" placeholder="https://www.beispielshop.de"></div>
 <button id="addButton" class="primary add">+ Shop hinzufügen</button>
+</div>
+<div class="auto-panel" aria-label="Automatische Prüfung">
+ <div class="auto-header">
+  <label class="auto-switch" for="autoScanEnabled"><input id="autoScanEnabled" type="checkbox" checked> <strong>Automatische Produktprüfung</strong></label>
+  <span class="data-status" id="autoScanState" aria-live="polite">Startet beim Öffnen</span>
+ </div>
+ <div class="auto-settings">
+  <label for="autoScanInterval">Prüfung wiederholen</label>
+  <select id="autoScanInterval" aria-label="Automatischer Scan-Rhythmus">
+   <option value="30">Alle 30 Minuten</option>
+   <option value="60" selected>Alle 60 Minuten</option>
+   <option value="180">Alle 3 Stunden</option>
+  </select>
+  <span class="editor-note">Prüft ausgewählte Shops nur bei geöffnetem Browser-Tab. Respektiert Scan- und Gratislimits. Ergebnisse werden lokal gespeichert.</span>
+ </div>
 </div>
 <div class="actions" style="margin-top:16px">
 <button id="scanButton" class="primary">Schnellscan · Ergebnisse zuerst</button>
@@ -269,7 +326,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.8: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
+<p class="foot">MarktRadar 5.9: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
