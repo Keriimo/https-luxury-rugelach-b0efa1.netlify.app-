@@ -43,7 +43,7 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save};})();');
  new Function("document","window","localStorage","navigator",exposed)(
   document,window,localStorage,{clipboard:{}});
  return {state:window.__marketRadarTest.state,api:window.__marketRadarTest,
@@ -136,4 +136,17 @@ test("Legacy unsupported products remain saved but are excluded from dashboards"
  assert.match(text(metrics),/2/);
  assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/2,99/);
  assert.equal(shop.items.length,3); // historical storage is retained
+});
+
+test("More than 300 floor products remain in browser storage without IndexedDB",()=>{
+ const app=boot();
+ const template=app.state.shops[0].items[0];
+ app.state.shops[0].items=Array.from({length:340},(_,i)=>({...template,
+  name:"Laminat Eiche "+i,url:"https://laminatdepot.de/laminat-eiche-"+i,
+  price:i%2?15.99:null}));
+ app.api.save();
+ const saved=JSON.parse(app.values.get("marktradar:catalog:v3"));
+ assert.equal(saved.shops[0].items.length,340);
+ app.api.render();
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
 });
