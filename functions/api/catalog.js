@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.8.0-free";
+const VERSION = "5.9.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -90,15 +90,21 @@ const strip=html=>clean(decode(String(html||"").replace(/<script\b[^>]*>[\s\S]*?
   .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi," ")
   .replace(/<[^>]*>/g," ")));
 const FLOOR_TYPES=["Laminat","Vinyl","Parkett"];
+const ACCESSORY_WORDS=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|trittschall|unterlage|unterboden|unterlagsmatte|wärmedämmung|waermedaemmung|isoliermatte|verlegezubehör|verlegezubehoer|sockelleiste|fußleiste|fussleiste|abschlussprofil|übergangsprofil|uebergangsprofil|montagekleber|verlegekleber|kleber|reiniger|pflegeprodukt|reparaturset|montageset|fugenmasse|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i;
+const FLOOR_FIRST=/^(?:(?:klick|klebe)[-\s]?)?(?:laminat(?:boden)?|vinyl(?:boden)?|rigid[-\s]?vinyl|parkett|designboden|spc[-\s]?boden|lvt[-\s]?boden)\b/i;
+function isNonFloorTitle(text){
+ const t=clean(text).toLowerCase();
+ if(!t)return true;
+ if(!ACCESSORY_WORDS.test(t))return false;
+ // A floor SET may include underlay or skirting; the advertised article
+ // must clearly be a floor and state that accessories are included.
+ const bundled=FLOOR_FIRST.test(t)&&
+   /(?:\bmit\b|\binklusive\b|\binkl\.|\binkl\b|\bintegrierter?\b|\binkludiert\b)/i.test(t);
+ return !bundled;
+}
 function typeOf(text){
  const t=clean(text).toLowerCase();
- if(!t)return null;
- // Only standalone floors; accessories are never their own product category.
- if(/(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i.test(t))return null;
- if(/^(?:montagekleber|kleber|dämmung|trittschall|unterlage|reiniger|abschlussprofil|übergangsprofil|zubehör|pflege|fugenmasse|schienen)/i.test(t))return null;
- if(/^(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(t)||
-  /(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(t)&&
-  !/^(?:laminat|vinyl|rigid|parkett|designboden)\b.*\b(?:inklusive|inkl\.?|mit)\s+.{0,45}(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(t))return null;
+ if(!t||isNonFloorTitle(t))return null;
  if(/parkett|fertigparkett|massivholz|schiffsboden/.test(t))return "Parkett";
  if(/laminat|laminate\b/.test(t))return "Laminat";
  if(/vinyl|rigid(?:[-\s]?vinyl)?|spc\b|lvt\b|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
@@ -228,6 +234,7 @@ function detail(html,site,url){
  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
  const content=main?main[1]:html.slice(Math.max(0,html.indexOf(h?.[0]||"")||0));
  const text=strip(content).slice(0,65000);
+ if(isNonFloorTitle(title))return null;
  const category=typeOf(title)||typeOf(ld?.category||"");
  if(!title||title.length<5||!category)return null;
  const extra=attrs(text,title),price=productPagePrice(text,ld,extra.packM2);
@@ -245,6 +252,10 @@ function detail(html,site,url){
 function isProduct(url){
  const path=new URL(url).pathname.toLowerCase();
  const slug=path.split("/").filter(Boolean).pop()||"";
+ // Product URLs with accessory words are not flooring products even when
+ // they contain "fuer-laminat" or the shop categorizes them under laminate.
+ const token=slug.replace(/-/g," ");
+ if(isNonFloorTitle(token))return false;
  // Do not waste detail-scan requests on accessories whose names mention floor types.
  if(/^(?:(?:[a-z0-9-]+-)?(?:trittschall|daemmung|dammung|sockelleiste|fussleiste|fußleiste|kleber|montagekleber|abschlussprofil|uebergangsprofil|uebergangsprofil|zubehoer|zubehör|reiniger|teppichboden|pvc-boden))[-_]/i.test(slug))return false;
  if(/(?:teppich|nadelfilz|bioboden|korkboden|linoleum|pvc-boden|cv-belag|trittschall|daemmung|dammung|kleber|reiniger|abschlussprofil|fußleisten?|fussleisten?|sockelleisten?)/i.test(path)&&
@@ -375,6 +386,7 @@ function shopify(site,data){
  for(const p of data.products.slice(0,50)){
   const name=nameClean(p.title),url=checkedLink(site,"/products/"+encodeURIComponent(p.handle||""));
   const body=strip(p.body_html||"").slice(0,5000);
+  if(isNonFloorTitle(name))continue;
   const category=typeOf(name)||typeOf(p.product_type||"");
   if(!url||!name||!category)continue;
   const extra=attrs(body,name),price=meterPrice(body,null,extra.packM2);
