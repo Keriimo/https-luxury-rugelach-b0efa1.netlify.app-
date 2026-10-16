@@ -1,4 +1,13 @@
-# MarktRadar 5.4 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.5 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## Version 5.5 – Vollscan und echte Laminat-DEPOT-Preise
+
+- **Erneutes Prüfen früherer Nullpreise:** Vorhandene Laminat-/Vinyl-/Parkett-Artikel ohne geprüften €/m²-Preis kommen nach dem Upgrade wieder in die Prüfwarteschlange. Gespeicherte Shop- und Produktdaten bleiben unverändert.
+- **Produktkarten:** Aktuelle „Komplett-Set XX,XX €/m²“-Preise auf Laminat-DEPOT-Kategorieseiten werden auch erkannt, wenn der Betrag außerhalb des Produktlinks in einem benachbarten HTML-Element steht. Der Scanner begrenzt diese Zuordnung bis vor das nächste andere Produkt, um Preise nicht zu verwechseln. Katalogkartenpreise sind als vorläufig markiert.
+- **Shopify-Fehler:** products.json wird nur bei Anzeichen für Shopify geprüft. Ein nicht zugänglicher optionaler Shopify-Feed beendet nicht die reguläre Produktseiten-Erfassung.
+- **Vollscan:** Über **Alle offenen Aufgaben automatisch prüfen** verarbeitet der Browser mehrere Scan-Etappen, bis keine erreichbaren Aufgaben übrig sind, ein Shop blockiert, das Gratis-Kontingent erreicht ist, der Benutzer stoppt oder das Sicherheitslimit von **15 Minuten pro Sitzung** erreicht wird. Browser-Tab geöffnet lassen. Fehlgeschlagene Produktabrufe werden begrenzt wiederholt und anschließend als nicht prüfbar markiert; sie gelten nicht als erfolgreich geprüft.
+- **Kein Vollständigkeitsversprechen:** Ein tatsächlicher Gesamtabgleich ist nur nach bestätigter Erreichbarkeit, zugänglichem vollständigem Shop-Katalog und ohne offene/fehlgeschlagene Aufgaben möglich. Cloudflare-Free-Kontingente, Blockaden, JavaScript-only-Preise und Shop-Rechte werden nicht umgangen. Der Worker arbeitet nicht automatisch weiter, wenn die Seite geschlossen wird.
+
 
 ## MarktRadar 5.4 – Sortiment & Preise (Oktober 2026)
 
