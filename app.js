@@ -195,12 +195,12 @@ function renderShops(){
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>s.items.map(p=>({...p,shopId:s.id,shopName:s.name})))}
 function validPrice(p){return Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
 function priceAvailable(p){return Number.isFinite(p.price)&&p.price>0&&["m²","Stück"].includes(p.unit)}
-function filteredItems(){
+function filteredItems(onlyOffers=false){
  const q=state.query.toLowerCase();
  let list=allItems().filter(p=>
   (!q||(p.name+" "+(p.brand||"")+" "+(p.sku||"")).toLowerCase().includes(q))&&
   (!state.category||p.category===state.category)&&
-  (!state.promo||(state.promo==="yes"?Boolean(p.promotion):!p.promotion))
+  (onlyOffers?Boolean(p.promotion):(!state.promo||(state.promo==="yes"?Boolean(p.promotion):!p.promotion)))
  );
  if(state.sort==="price")list.sort((a,b)=>(a.price==null?1:0)-(b.price==null?1:0)||((a.price??Infinity)-(b.price??Infinity)));
  if(state.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"de"));
@@ -343,7 +343,8 @@ function renderComparisons(pairs){
   left.append(node("strong",null,pair.a.shopName+": "+pair.a.name));
   left.append(node("small","muted","↔ "+pair.b.shopName+": "+pair.b.name));
   left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
-  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je "+pair.a.unit));
+  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je "+pair.a.unit+" ("+Math.round(100*pair.relative)+" % gegenüber dem höheren Preis)"));
+  left.append(node("small","muted","Automatischer Vergleichsvorschlag · Merkmale vor Verwendung prüfen"));
   const detail=node("div","detail-box");detail.hidden=true;
   item.append(left,btn("Technik vergleichen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
   area.append(item);
@@ -352,7 +353,7 @@ function renderComparisons(pairs){
 }
 function renderPromos(){
  const area=el("offersHolder");area.replaceChildren();
- const list=filteredItems().filter(p=>p.promotion).slice(0,state.limit);
+ const list=filteredItems(true);
  if(!list.length){area.append(node("div","empty","Keine eindeutig gekennzeichneten Aktionen in der Auswahl."));return;}
  for(const p of list){
   const row=node("div","offer"),left=node("div","shop-data");
