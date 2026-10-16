@@ -14,6 +14,13 @@ body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif
 .hero:after{content:"";width:260px;height:260px;border:1px solid rgba(255,255,255,.08);border-radius:50%;position:absolute;right:-90px;top:-130px;pointer-events:none}
 .hero>*{position:relative;z-index:1}
 .hero h1{font-size:34px}
+.hero-brand{display:flex;align-items:center;gap:12px;min-width:0}
+#brandLogo{max-width:150px;max-height:58px;object-fit:contain;background:rgba(255,255,255,.95);padding:5px;border-radius:8px}
+.logo-preview{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+#editorLogoPreview{max-width:150px;max-height:70px;object-fit:contain;background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px}
+.file-label{padding:9px 13px;border:1px solid var(--border);border-radius:9px;cursor:pointer;font-weight:600;background:white}
+.editor-grid input[type=color]{height:42px;padding:4px 6px;max-width:180px;cursor:pointer}
+#editorImport{width:1px;height:1px;opacity:0;position:absolute;overflow:hidden}
 .hero.light{color:var(--ink);border:1px solid var(--border)}
 .hero.light .hero-tools button{color:var(--ink);border-color:var(--border);background:#f4f6f9}
 .hero.light p{color:var(--muted)}
@@ -127,30 +134,40 @@ a{color:#c51f32;text-decoration:underline}
 <main class="layout">
 <header id="hero" class="hero">
 <div class="row between">
-<div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div>
-<div class="hero-tools"><span class="badge">Version 5.7 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-brand"><img id="brandLogo" alt="Dein Markenlogo" hidden><div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div></div>
+<div class="hero-tools"><span class="badge">Version 5.7 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
 <p id="pageSubtitle">Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²</p>
 </header>
-<section class="panel" id="appearancePanel" hidden aria-label="Überschrift und Design bearbeiten">
- <div class="section-intro"><div><h2>Darstellung selbst anpassen</h2><div class="section-note">Nur für diesen Browser gespeichert · keine Änderung am Scanner</div></div></div>
+<section class="panel" id="appearancePanel" hidden aria-label="Designstudio">
+ <div class="section-intro"><div><h2>Designstudio · selbst gestalten</h2><div class="section-note">Logo, Überschriften, Farben und Texte bearbeiten. Alle Angaben werden nur in deinem Browser gespeichert.</div></div></div>
  <div class="editor-grid">
   <div><label for="editorBrand">Marken-Zeile</label><input id="editorBrand" maxlength="65" placeholder="LAMINAT DEPOT · MARKTRADAR"></div>
   <div><label for="editorTitle">Überschrift</label><input id="editorTitle" maxlength="80" placeholder="Wettbewerbsanalyse"></div>
   <div style="grid-column:1/-1"><label for="editorSubtitle">Untertitel</label><input id="editorSubtitle" maxlength="130" placeholder="Laminat · Vinyl / Rigid-Vinyl · Parkett"></div>
-  <div><label for="editorAccent">Akzentfarbe</label><select id="editorAccent"><option value="#e5233f">DEPOT-Rot</option><option value="#c51f32">Dunkelrot</option><option value="#2563eb">Blau</option><option value="#0c8c62">Grün</option></select></div>
-  <div><label for="editorTheme">Kopfbereich</label><select id="editorTheme"><option value="#15233a">Dunkelblau (DEPOT-Stil)</option><option value="#101827">Anthrazit</option><option value="#ffffff">Hell</option></select></div>
+  <div style="grid-column:1/-1"><label for="editorOverviewText">Text der Preisübersicht</label><input id="editorOverviewText" maxlength="190" placeholder="Die günstigsten erfassten Angebote ..."></div>
+  <div><label for="editorTabProducts">Text des Produkte-Reiters</label><input id="editorTabProducts" maxlength="36"></div>
+  <div><label for="editorTabCompare">Text des Vergleich-Reiters</label><input id="editorTabCompare" maxlength="36"></div>
+  <div><label for="editorAccent">Akzentfarbe / Buttons</label><input type="color" id="editorAccent" value="#e5233f"></div>
+  <div><label for="editorTheme">Farbe Kopfbereich</label><input type="color" id="editorTheme" value="#15233a"></div>
+  <div><label for="editorBackground">Seitenhintergrund</label><input type="color" id="editorBackground" value="#f2f4f7"></div>
+  <div><label for="editorTextColor">Textfarbe</label><input type="color" id="editorTextColor" value="#17243a"></div>
+  <div style="grid-column:1/-1"><label for="editorLogo">Eigenes Logo (PNG, JPG oder WebP, max. 200 KB)</label><input id="editorLogo" type="file" accept="image/png,image/jpeg,image/webp">
+   <div class="logo-preview"><img id="editorLogoPreview" alt="Logovorschau" hidden><button id="removeLogo" type="button">Logo entfernen</button><span class="editor-note">Bitte nur Logos verwenden, die du nutzen darfst.</span></div>
+  </div>
  </div>
  <div class="editor-actions" style="margin-top:14px">
-  <button id="editorSave" class="primary">Darstellung speichern</button>
-  <button id="editorReset">Standard wiederherstellen</button>
-  <span class="editor-note">Die Einstellungen beeinflussen nur das Design, nicht den Scan.</span>
+  <button id="editorSave" class="primary">Design speichern</button>
+  <button id="editorReset" type="button">Standard wiederherstellen</button>
+  <button id="editorExport" type="button">Design exportieren</button>
+  <label class="file-label" for="editorImport">Design importieren (JSON)</label><input type="file" id="editorImport" accept=".json,application/json">
  </div>
+ <p class="editor-note">Design und Logo sind unabhängig vom Scanner. Damit deine Kollegen dasselbe Design sehen, kannst du die Design-Datei exportieren und bei ihnen importieren – ohne Anmeldung.</p>
 </section>
 <section class="panel" aria-label="Marktübersicht" id="overviewSection">
- <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note">Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m². Ohne nachgewiesenen Preis zeigen wir klar „Preis fehlt“.</div></div>
+ <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note" id="overviewTagline">Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m². Ohne nachgewiesenen Preis zeigen wir klar „Preis fehlt“.</div></div>
  <span class="data-status" id="priceCoverage">Noch keine Preisdaten</span></div>
  <div id="bestPriceGrid" class="best-grid"></div>
  <div class="section-rule"></div>
