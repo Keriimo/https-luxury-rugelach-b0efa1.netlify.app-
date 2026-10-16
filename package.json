@@ -1,8 +1,8 @@
 {
   "name": "marktradar-cloudflare",
-  "version": "5.6.0",
+  "version": "5.7.0",
   "private": true,
-  "description": "Browserbasierte Wettbewerbsanalyse für Bodenbeläge – Cloudflare Pages Free",
+  "description": "Browserbasiertes kostenloses Preisradar für Laminat, Vinyl und Parkett",
   "scripts": {
     "test": "node --test tests/cloudflare.test.cjs tests/worker.test.cjs tests/ui.test.cjs",
     "build": "sh build-cloudflare.sh"
