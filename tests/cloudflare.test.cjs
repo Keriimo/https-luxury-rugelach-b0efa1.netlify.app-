@@ -329,3 +329,37 @@ test("Clearly named accessory product URLs are excluded before requesting detail
  assert.equal(found.urls.length,1);
  assert.equal(found.products[0].category,"Laminat");
 });
+
+test("Insulation advertised 'für Laminat' or inside laminate category is never a floor product",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ for(const title of [
+  "Trittschalldämmung für Laminat 2 mm",
+  "XPERT Trittschalldämmung passend für Laminat",
+  "Dämmunterlage für Vinyl Rigid",
+  "Laminat Trittschalldämmung 2 mm",
+  "Trittschall-Unterlage Vinyl 5 mm",
+  "Sockelleiste für Parkett Eiche"
+ ])assert.equal(x.typeOf(title),null,title);
+ const structured=JSON.stringify({"@type":"Product",
+  name:"XPERT Trittschalldämmung für Laminat",category:"Laminat",
+  offers:{price:"9.99",priceSpecification:{unitCode:"MTK"}}});
+ const detail=x.detail('<script type="application/ld+json">'+structured+'</script>'+
+  '<main><h1>XPERT Trittschalldämmung für Laminat</h1><p>Stärke 2 mm</p></main>',
+  site,site.root+"products/xpert-trittschalldaemmung-fuer-laminat");
+ assert.equal(detail,null);
+ const listing=x.list('<a href="/products/xpert-trittschalldaemmung-fuer-laminat">'+
+  'XPERT Trittschalldämmung für Laminat</a>'+
+  '<a href="/products/laminat-eiche-8mm">Laminat Eiche 8 mm</a>',site,site.root+"laminat");
+ assert.equal(listing.urls.length,1);
+ assert.equal(listing.products.length,1);
+ assert.equal(listing.products[0].name,"Laminat Eiche 8 mm");
+});
+test("Flooring sold with included underlay remains discoverable",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const title="Laminat Eiche 8 mm inklusive Dämmung";
+ assert.equal(x.typeOf(title),"Laminat");
+ const item=x.detail('<main><h1>'+title+'</h1><p>Komplettpreis 12,99 €/m²</p></main>',
+ site,site.root+"products/laminat-eiche-inklusive-daemmung");
+ assert.equal(item.category,"Laminat");
+ assert.equal(item.price,12.99);
+});
