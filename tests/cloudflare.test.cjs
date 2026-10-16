@@ -20,8 +20,8 @@ test("Different floor types and accessories",()=>{
  assert.equal(x.typeOf("Laminat Eiche"),"Laminat");
  assert.equal(x.typeOf("Klickvinyl 5 mm"),"Vinyl");
  assert.equal(x.typeOf("Parkett Eiche"),"Parkett");
- assert.equal(x.typeOf("Trittschalldämmung für Laminat"),"Zubehör");
- assert.equal(x.typeOf("Korkboden"),"Bioboden & Kork");
+ assert.equal(x.typeOf("Trittschalldämmung für Laminat"),null);
+ assert.equal(x.typeOf("Korkboden"),null);
 });
 test("Prices are not invented",()=>{
  assert.equal(x.meterPrice("19,99 € /m²",null,null).price,19.99);
@@ -198,4 +198,48 @@ test("Unlabeled prices are not invented from an unrelated category",()=>{
   '<a href="/laminat-bodomo-premium-schlossdiele-natur-100013100">Laminat Eiche Natur</a>';
  const result=x.list(html,shop,shop.root);
  assert.equal(result.products[0].price,null);
+});
+
+
+test("Only laminate, parquet and vinyl/rigid vinyl; reject other floor materials",()=>{
+ for(const [label,expected] of [
+  ["Laminat Eiche 8 mm","Laminat"],
+  ["Parkett Eiche 14 mm","Parkett"],
+  ["Vinyl rigid 5 mm","Vinyl"],
+  ["Rigid-Vinyl Eiche 4 mm","Vinyl"],
+  ["SPC Designboden beige","Vinyl"],
+  ["Teppichboden beige",null],
+  ["PVC-Boden stone",null],
+  ["Linoleum grau",null],
+  ["Bioboden Exquisit",null],
+  ["Korkboden",null],
+  ["Fußleiste passend für Vinyl",null],
+  ["Trittschalldämmung für Laminat",null]
+ ])assert.equal(x.typeOf(label),expected,label);
+});
+test("LaminatDEPOT Komplettpreis wins over crossed-out prices and derives a genuine advertised saving",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<main><h1>Laminat BoDomo Klassik Modern Grau</h1>'+
+  '<p>Boden 12,99 €/m² + inkl. Basic Dämmung 0,00 €/m² + inkl. Fußleiste 0,00 €/m</p>'+
+  '<section>Komplettpreis statt <del>17,73</del> 12,99 €/m² Du sparst 4,74 €/m²</section>'+
+  '<p>Paketpreis 32,40 € | Inhalt 2,494 m²</p></main>';
+ const product=x.detail(html,site,site.root+"laminat-bodomo-klassik-modern-grau-100029402");
+ assert.equal(product.price,12.99);
+ assert.equal(product.oldPrice,17.73);
+ assert.equal(product.priceSource,"Komplettpreis €/m² auf Produktseite");
+ assert.equal(product.unit,"m²");
+ assert.equal(product.packM2,2.494);
+});
+test("Long listing and sitemap can process more than 200 products without truncation",()=>{
+ const site=x.safeShop("https://boden-testshop.de/");
+ const labels=Array.from({length:340},(_,i)=>
+  '<a href="/products/laminat-eiche-'+i+'">Laminat Eiche '+i+' 8 mm 14,99 €/m²</a>');
+ const listed=x.list('<main>'+labels.join('')+'</main>',site,site.root+"laminat");
+ assert.equal(listed.urls.length,340);
+ assert.equal(listed.products.length,340);
+ const xml='<urlset>'+labels.map((_,i)=>'<url><loc>'+site.root+
+  'products/laminat-eiche-'+i+'</loc></url>').join('')+'</urlset>';
+ const parsed=x.sitemap(xml,site,site.root+"sitemap.xml");
+ assert.equal(parsed.urls.length,340);
+ assert.equal(parsed.jobs.length,0);
 });
