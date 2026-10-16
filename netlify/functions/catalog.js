@@ -291,6 +291,9 @@ function reply(result,code=200){
  "X-Content-Type-Options":"nosniff"},body:JSON.stringify(result)};
 }
 async function main(event){
+ // The dashboard checks GET /api/catalog without shop parameters for health.
+ if(event.httpMethod==="GET"&&!event.queryStringParameters?.site)
+  return reply({ok:true,version:"5.11-netlify",platform:"Netlify",features:["discover","expand","shopify","batch"]});
  const input=event.httpMethod==="POST"?JSON.parse(event.body||"{}"):event.queryStringParameters||{};
  const action=input.action||"discover";
  if(action==="health")return reply({ok:true,version:"4.1.4",name:"MarketRadar Generic Catalog"});
