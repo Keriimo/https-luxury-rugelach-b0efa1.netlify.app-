@@ -215,6 +215,16 @@ function sitemap(html,site,url,offset){
  if(off+250<all.length)jobs.push({type:"map",url,offset:off+250});
  return {jobs,urls,products:[],total:all.length,truncated:all.length>=10000};
 }
+function robotsCatalog(text,site){
+ const jobs=[],seen=new Set();
+ for(const line of String(text).split(/\r?\n/)){
+  const match=line.match(/^\s*Sitemap:\s*(https?:\/\/\S+)/i);
+  if(!match)continue;
+  const url=checkedLink(site,match[1]);
+  if(url&&!seen.has(url)&&jobs.length<12){jobs.push({type:"map",url});seen.add(url);}
+ }
+ return {jobs,urls:[],products:[],total:jobs.length};
+}
 function shopify(site,data){
  if(!Array.isArray(data.products))throw Error("Öffentlicher Shopify-Katalog nicht verfügbar");
  const products=[];
@@ -252,7 +262,13 @@ export async function onRequestPost({request}){
   if(action==="health")return json({ok:true,version:VERSION,platform:"Cloudflare"});
   const site=safeShop(input.site);
   if(action==="discover"){
-   const jobs=[{type:"map",url:site.root+"sitemap.xml"},{type:"list",url:site.start}];
+   const jobs=[
+    {type:"robots",url:site.root+"robots.txt"},
+    {type:"map",url:site.root+"sitemap.xml"},
+    {type:"list",url:site.start},
+    {type:"map",url:site.root+"sitemap_index.xml"},
+    {type:"map",url:site.root+"wp-sitemap.xml"}
+   ];
    const urls=isProduct(site.start)?[site.start]:[];
    if(site.root!==site.start)jobs.push({type:"list",url:site.root});
    return json({site:site.root,jobs,urls,checkedAt:new Date().toISOString(),version:VERSION});
@@ -264,10 +280,10 @@ export async function onRequestPost({request}){
   if(action==="expand"){
    const job=input.job||{};
    const url=checkedLink(site,job.url);
-   if(!url||!["map","list"].includes(job.type))return json({error:"Ungültiger Katalog-Link"},400);
+   if(!url||!["map","list","robots"].includes(job.type))return json({error:"Ungültiger Katalog-Link"},400);
    const data=await getText(site,url);
-   return json(job.type==="map"?
-     sitemap(data.body,site,data.url,job.offset):
+   return json(job.type==="map"?sitemap(data.body,site,data.url,job.offset):
+     job.type==="robots"?robotsCatalog(data.body,site):
      list(data.body,site,data.url));
   }
   if(action==="shopify"){
