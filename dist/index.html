@@ -62,7 +62,7 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 #message[data-kind=warning]{background:#fff4df;color:#775115}
 #message[data-kind=ok]{background:#e5f6ed;color:#155a38}
 #progress{background:#eaf0fc;color:#244b7b}
-.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:16px}
 .metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white;box-shadow:0 2px 8px rgba(24,35,56,.025)}
 .metric-card small{font-size:12px}
 .section-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:2px 0 13px}
@@ -135,7 +135,7 @@ a{color:#c51f32;text-decoration:underline}
 <header id="hero" class="hero">
 <div class="row between">
 <div class="hero-brand"><img id="brandLogo" alt="Dein Markenlogo" hidden><div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div></div>
-<div class="hero-tools"><span class="badge">Version 5.7 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-tools"><span class="badge">Version 5.8 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
@@ -215,10 +215,10 @@ a{color:#c51f32;text-decoration:underline}
 </select>
 <select id="limit" aria-label="Anzahl Produkte">
 <option value="10">Top 10</option>
-<option value="20" selected>Top 20</option>
+<option value="20">Top 20</option>
 <option value="50">Top 50</option>
 <option value="100">Top 100</option>
-<option value="5000">Alle erfassten</option>
+<option value="12000" selected>Alle erfassten · alle Shops</option>
 </select>
 <select id="sort" aria-label="Sortierung">
 <option value="balanced" selected>Shop-Mix · alle Anbieter sichtbar</option>
@@ -260,8 +260,8 @@ a{color:#c51f32;text-decoration:underline}
  </div>
 </div>
 <p class="notice">Manuell eingetragene Preise werden als solche markiert und nur für den ausgewählten Artikel gespeichert. Bitte vorher den aktuellen €/m²-Preis im verlinkten Originalshop prüfen.</p>
-<div class="selection-bar"><div id="manualSelectionLabel">Noch keine Produkte zum Vergleich ausgewählt.</div><div class="row"><button id="clearCompare">Auswahl löschen</button></div></div>
-<div id="manualComparisonHolder"></div>
+<div class="selection-bar"><div id="manualSelectionLabel">Noch keine Produkte zum Vergleich ausgewählt.</div><div class="row"><button id="compareNow" class="primary" type="button">Jetzt beide Produkte vergleichen</button><button id="clearCompare">Auswahl löschen</button></div></div>
+<div id="manualComparisonHolder" role="status" aria-live="polite"></div>
 </div>
 <div id="offersSection" hidden>
 <h2>Erkannte Werbepreise, Aktionen und Angebote</h2>
@@ -269,7 +269,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.7: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
+<p class="foot">MarktRadar 5.8: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
