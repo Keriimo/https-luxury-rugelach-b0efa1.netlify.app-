@@ -134,7 +134,7 @@ function cleanUrl(input){
  if(u.protocol!=="https:"||u.username||u.password||u.port)throw Error("Nur HTTPS-Webseiten ohne Port unterstützt.");
  const host=u.hostname.replace(/^www\./,"").toLowerCase();
  if(!host.includes(".")||/^(localhost|127\.|10\.|192\.168\.)/.test(host)||/\.(local|internal|localhost|test)$/i.test(host))throw Error("Bitte einen öffentlich erreichbaren Shop angeben.");
- return u.origin+u.pathname.replace(/\/+$/,"")+"/";
+ return u.origin+u.pathname+u.search;
 }
 function addShop(){
  const name=neat(el("newName").value).slice(0,70),input=neat(el("newUrl").value);
@@ -504,6 +504,7 @@ async function scanShop(shop,restart){
         !scan.urls.includes(product.url))scan.urls.push(product.url);
       }
       if(data.hasMore&&job.page<30)scan.jobs.push({type:"shopify",page:job.page+1});
+      if(data.hasMore&&job.page>=30)scan.truncated=true;
      }else{
       for(const next of data.jobs||[]){
        const token=next.type+":"+next.url+":"+(next.offset||next.page||0);
