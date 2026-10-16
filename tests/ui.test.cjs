@@ -43,7 +43,7 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,comparePairs,renderManualComparison};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison};})();');
  new Function("document","window","localStorage","navigator",exposed)(
   document,window,localStorage,{clipboard:{}});
  return {state:window.__marketRadarTest.state,api:window.__marketRadarTest,
@@ -55,13 +55,19 @@ test("Dashboard boots with available shop products and no network requests",()=>
  assert.equal(app.elements.get("shopCoverage").children.length,1);
  assert.equal(app.state.shops.length,2);
 });
-test("A missing €/m² price never becomes a fabricated advantage",()=>{
+test("Category price duel shows missing prices instead of invented advantages",()=>{
  const app=boot();
- const pairs=app.api.comparePairs();
- assert.ok(pairs.length>0);
- assert.equal(pairs[0].pricePair,false);
- assert.equal(pairs[0].diff,null);
+ app.state.tab="comparison";
+ app.api.render();
+ const holder=app.elements.get("priceDuelHolder");
+ assert.equal(holder.children.length,1);
+ const textContent=node=>[node.textContent||"",...(node.children||[]).map(textContent)].join(" ");
+ const content=textContent(holder);
+ assert.match(content,/Kein Preis erfasst/);
+ assert.match(content,/13,99/);
+ assert.doesNotMatch(content,/direkt vergleichbar|Vergleichsvorschläge/i);
 });
+
 test("Manual comparison works with an unpriced Laminat DEPOT product",()=>{
  const app=boot();
  const products=app.state.shops;
@@ -97,4 +103,14 @@ test("Fast and deep scan controls exist without modifying the API",()=>{
 test("Cloudflare dist assets always match the current source",()=>{
  assert.equal(fs.readFileSync("dist/index.html","utf8"),html);
  assert.equal(fs.readFileSync("dist/app.js","utf8"),source);
+});
+
+test("All shops share the same bounded scanner and old products remain in storage",()=>{
+ const app=boot();
+ assert.match(source,/engineVersion:3/);
+ assert.match(source,/for\(let round=0;round<rounds;round\+\+\)/);
+ assert.match(source,/for\(const shop of shops\)/);
+ assert.equal(app.state.shops[0].items.length,1);
+ assert.equal(app.state.shops[1].items.length,1);
+ assert.match(source,/const KEY="marktradar:catalog:v3"/);
 });
