@@ -192,8 +192,17 @@ function productPagePrice(text,structured,pack){
   const chunk=t.slice(m.index+m[0].length,m.index+m[0].length+180)
    .split(/(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
   const price=currentWithin(chunk);
-  if(price&&price<500)return {...meterPrice("",null,null),price,unit:"m²",
-   priceSource:/komplett-set/i.test(m[0])?"Komplett-Set €/m² aus Katalog":"Komplettpreis €/m² auf Produktseite"};
+  if(price&&price<500){
+   const before=t.slice(Math.max(0,m.index-75),m.index);
+   const prior=before.match(/statt\s*([0-9]{1,4}(?:[,.][0-9]{2}))\s*€?\s*(?:\/\s*(?:m²|m2|qm))?\s*$/i);
+   const inside=chunk.match(/statt\s*([0-9]{1,4}(?:[,.][0-9]{2}))/i);
+   const oldValue=number(inside?.[1]||prior?.[1]);
+   const oldPrice=oldValue&&oldValue>price?oldValue:null;
+   return {...meterPrice("",null,null),price,unit:"m²",
+    priceSource:/komplett-set/i.test(m[0])?"Komplett-Set €/m² aus Katalog":"Komplettpreis €/m² auf Produktseite",
+    oldPrice,discountPct:oldPrice?Math.round((1-price/oldPrice)*100):null,
+    promotion:oldPrice?"Ausgewiesener Preisnachlass":""};
+  }
  }
  // Only compute a unit price from an explicit, local package price + area pair.
  const pairs=[...t.matchAll(/Paketpreis\s*:?\s*([0-9]{1,5}(?:[,.][0-9]{2}))\s*€\s*(?:\||;|,)\s*Inhalt\s*:?\s*([0-9]{1,3}(?:[,.][0-9]{1,3}))\s*(?:m²|m2|qm)/gi)];
