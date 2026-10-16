@@ -43,7 +43,7 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance,compareNow};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance,compareNow,looksLikeFloorProduct,loadAppearance,readAutoSettings,changeAutoSettings,shopDueForAuto,updateAutoScanStatus,removeLogoNow,selectDesignPreset};})();');
  class FakeFileReader{
   readAsDataURL(file){this.result=file.data;this.onload();}
   readAsText(file){this.result=file.content;this.onload();}
@@ -113,7 +113,7 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:8/);
+ assert.match(source,/engineVersion:9/);
  assert.match(source,/for\(let round=0;round<rounds&&/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
@@ -170,7 +170,7 @@ test("Browser full scan is bounded, resumable and supports stopping",()=>{
 test("Unpriced saved products will be revisited in scanner v5",()=>{
  assert.match(source,/previous\.filter\(p=>p\?\.url&&isSupported\(p\)&&!priceAvailable\(normalizedItem\(p\)\)\)/);
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
- assert.match(source,/if\(saved&&saved\.engineVersion!==8\)saved=null/);
+ assert.match(source,/if\(saved&&saved\.engineVersion!==9\)saved=null/);
 });
 
 test("An unavailable optional Shopify feed never counts as a shop-wide failure",()=>{
@@ -375,4 +375,100 @@ test("Full shop dropdown is not cut at 300 and supports 430+ entries",()=>{
  app.state.tab="comparison";app.api.render();
  const select=app.elements.get("compareProductA");
  assert.equal(select.children.length,451);
+});
+
+test("Previously saved insulation categorized as Laminat is filtered everywhere without deletion",()=>{
+ const app=boot();
+ const shop=app.state.shops[0];
+ shop.items.push({name:"Trittschalldämmung für Laminat 2 mm",category:"Laminat",
+  price:2.99,unit:"m²",url:"https://laminatdepot.de/produkte/trittschall"});
+ shop.items.push({name:"Laminat Eiche inklusive Dämmung",category:"Laminat",
+  price:19.99,unit:"m²",url:"https://laminatdepot.de/produkte/eiche"});
+ app.state.tab="products";app.api.render();
+ const text=n=>[n.textContent||"",...(n.children||[]).map(text)].join(" ");
+ assert.doesNotMatch(text(app.elements.get("tableHolder")),/Trittschalldämmung für Laminat 2 mm/);
+ assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/2,99/);
+ assert.match(text(app.elements.get("tableHolder")),/Laminat Eiche inklusive Dämmung/);
+ assert.equal(shop.items.length,3); // old raw catalog stays archived
+});
+test("Remove logo works in one click and survives appearance reload",()=>{
+ const app=boot();
+ const logo="data:image/png;base64,aGVsbG8=";
+ app.elements.get("editorLogo").files=[{size:100,type:"image/png",data:logo}];
+ app.elements.get("editorLogo").onchange();
+ app.elements.get("editorSave").click();
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,logo);
+ app.elements.get("removeLogo").click();
+ assert.equal(app.elements.get("brandLogo").hidden,true);
+ assert.equal(app.elements.get("editorLogoPreview").hidden,true);
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,"");
+ app.api.loadAppearance();
+ assert.equal(app.elements.get("brandLogo").hidden,true);
+});
+test("Extra design options persist and never change catalog data",()=>{
+ const app=boot();
+ const before=app.values.get("marktradar:catalog:v3");
+ app.elements.get("editorFont").value="georgia";
+ app.elements.get("editorFontSize").value="18";
+ app.elements.get("editorDensity").value="compact";
+ app.elements.get("editorRadius").value="28";
+ app.elements.get("editorWidth").value="1600";
+ app.elements.get("editorCards").value="strong";
+ app.elements.get("editorCardColor").value="#f8f9fa";
+ app.elements.get("editorBorderColor").value="#bbccdd";
+ app.elements.get("editorSave").click();
+ const saved=JSON.parse(app.values.get("marktradar:appearance:v1"));
+ assert.equal(saved.font,"georgia");
+ assert.equal(saved.fontSize,"18");
+ assert.equal(saved.radius,"28");
+ assert.equal(saved.width,"1600");
+ assert.equal(saved.card,"#f8f9fa");
+ assert.equal(saved.border,"#bbccdd");
+ assert.equal(app.values.get("marktradar:catalog:v3"),before);
+});
+test("Preset fills theme color controls and accepts custom preview",()=>{
+ const app=boot();
+ app.elements.get("editorPreset").value="forest";
+ app.elements.get("editorPreset").onchange();
+ assert.equal(app.elements.get("editorAccent").value,"#18845a");
+ assert.equal(app.elements.get("editorTheme").value,"#162f2a");
+ app.elements.get("editorPreview").click();
+ assert.equal(app.elements.get("editorAccent").value,"#18845a");
+});
+test("Automatic scan is enabled by default, configurable and separately persisted",()=>{
+ const app=boot();
+ const catalog=app.values.get("marktradar:catalog:v3");
+ app.api.readAutoSettings();
+ assert.equal(app.elements.get("autoScanEnabled").checked,true);
+ assert.equal(app.elements.get("autoScanInterval").value,"30");
+ app.elements.get("autoScanEnabled").checked=false;
+ app.elements.get("autoScanInterval").value="180";
+ app.api.changeAutoSettings();
+ const saved=JSON.parse(app.values.get("marktradar:auto:v1"));
+ assert.equal(saved.enabled,false);
+ assert.equal(saved.minutes,180);
+ assert.equal(app.elements.get("autoScanState").textContent,"Ausgeschaltet");
+ assert.equal(app.values.get("marktradar:catalog:v3"),catalog);
+});
+test("Automatic scanner only resumes pending or stale shops and respects blocking cooldown",()=>{
+ const app=boot();
+ const now=Date.now();
+ const shop=app.state.shops[0];
+ assert.equal(app.api.shopDueForAuto(shop,now),true);
+ shop.scan={lastScanAt:new Date(now).toISOString(),jobs:[],urls:[],blocked:false};
+ assert.equal(app.api.shopDueForAuto(shop,now),false);
+ shop.scan.urls=["https://laminatdepot.de/produkte"];
+ assert.equal(app.api.shopDueForAuto(shop,now),true);
+ shop.scan.blocked=true;
+ assert.equal(app.api.shopDueForAuto(shop,now),false);
+ assert.equal(app.api.shopDueForAuto(shop,now+4*60*60*1000),true);
+});
+test("Scanner queue has exactly matching initialized and persisted version",()=>{
+ const start=source.match(/saved=\{engineVersion:(\d+),/);
+ const checkpoint=source.match(/engineVersion:(\d+),lastScanAt:/);
+ const accept=source.match(/saved\.engineVersion!==(\\d+)/);
+ assert.ok(start&&checkpoint);
+ assert.equal(start[1],checkpoint[1]);
+ assert.match(source,/saved\.engineVersion!==9/);
+ assert.match(source,/lastScanAt:new Date\(\)\.toISOString\(\)/);
 });
