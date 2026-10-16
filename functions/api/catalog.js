@@ -276,7 +276,7 @@ function list(html,site,url){
  const urls=new Set(),next=new Set(),products=[],anchor=/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
  const productMap=new Map();
  let match,counter=0;
- while((match=anchor.exec(html))&&counter++<2000){
+ while((match=anchor.exec(html))&&counter++<5000){
   const href=checkedLink(site,decode(match[1]),url);
   if(!href||href===url)continue;
   const label=strip(match[2]).slice(0,700);
@@ -301,22 +301,22 @@ function list(html,site,url){
   }
  }
  for(const product of productMap.values())products.push(product);
- return {jobs:[...next].slice(0,36).map(url=>({type:"list",url})),
-  urls:[...urls].slice(0,750),products};
+ return {jobs:[...next].slice(0,120).map(url=>({type:"list",url})),
+  urls:[...urls].slice(0,2500),products:products.slice(0,2500)};
 }
 function sitemap(html,site,url,offset){
  const isIndex=/<sitemapindex\b/i.test(html);
  const rx=/<loc\b[^>]*>([\s\S]*?)<\/loc>/gi,all=[];let m;
- while((m=rx.exec(html))&&all.length<10000){
+ while((m=rx.exec(html))&&all.length<30000){
   const checked=checkedLink(site,decode(strip(m[1])));
   if(checked)all.push(checked);
  }
  const off=Math.max(0,Math.min(all.length,Math.trunc(Number(offset)||0)));
- const segment=all.slice(off,off+250);
+ const segment=all.slice(off,off+500);
  const jobs=isIndex?segment.filter(link=>/\.xml(?:$|\?)|\/sitemap/i.test(link)).map(url=>({type:"map",url})):[];
  const urls=isIndex?[]:segment.filter(isProduct);
- if(off+250<all.length)jobs.push({type:"map",url,offset:off+250});
- return {jobs,urls,products:[],total:all.length,truncated:all.length>=10000};
+ if(off+500<all.length)jobs.push({type:"map",url,offset:off+500});
+ return {jobs,urls,products:[],total:all.length,truncated:all.length>=30000};
 }
 function robotsCatalog(text,site){
  const jobs=[],seen=new Set();
@@ -390,7 +390,7 @@ export async function onRequestPost({request}){
      list(data.body,site,data.url));
   }
   if(action==="shopify"){
-   const page=Math.min(30,Math.max(1,Math.trunc(Number(input.page)||1)));
+   const page=Math.min(100,Math.max(1,Math.trunc(Number(input.page)||1)));
    const response=await getText(site,site.root+"products.json?limit=50&page="+page);
    let items;
    try{items=JSON.parse(response.body);}catch(e){throw Error("Shopify-Katalog gesperrt oder ungültig");}
