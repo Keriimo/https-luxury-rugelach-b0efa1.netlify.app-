@@ -53,53 +53,131 @@ const DEFAULT=[
 ];
 let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
 const APPEARANCE_KEY="marktradar:appearance:v1";
-const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
+const STANDARD_STYLE={
+ brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
  subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²",
- accent:"#e5233f",hero:"#15233a"};
-let appearance={...STANDARD_STYLE};
-const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
-const heroOptions=["#15233a","#101827","#ffffff"];
+ overview:"Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m². Ohne nachgewiesenen Preis zeigen wir klar „Preis fehlt“.",
+ tabProducts:"Alle Produkte",tabCompare:"Preisradar & Produktvergleich",
+ accent:"#e5233f",hero:"#15233a",background:"#f2f4f7",ink:"#17243a",logo:""
+};
+let appearance={...STANDARD_STYLE},pendingLogo=null;
+const isColor=v=>typeof v==="string"&&/^#[0-9a-f]{6}$/i.test(v);
+const isLogo=v=>typeof v==="string"&&v.length<300000&&
+ /^data:image\/(?:png|jpeg|webp);base64,[a-z0-9+/=]+$/i.test(v);
+function validateAppearance(saved){
+ const next={...STANDARD_STYLE};
+ if(!saved||typeof saved!=="object"||Array.isArray(saved))return next;
+ const lengths={brand:65,title:80,subtitle:130,overview:190,tabProducts:36,tabCompare:36};
+ for(const [key,limit]of Object.entries(lengths)){
+  if(typeof saved[key]==="string"&&saved[key].trim())next[key]=saved[key].trim().slice(0,limit);
+ }
+ for(const key of ["accent","hero","background","ink"])
+  if(isColor(saved[key]))next[key]=saved[key].toLowerCase();
+ if(isLogo(saved.logo))next.logo=saved.logo;
+ if(/bioboden|teppich|pvc|zubehör|sockelleisten|fußleisten/i.test(next.subtitle))
+  next.subtitle=STANDARD_STYLE.subtitle;
+ return next;
+}
 function loadAppearance(){
- try{
-  const saved=JSON.parse(localStorage.getItem(APPEARANCE_KEY)||"null");
-  if(saved&&typeof saved==="object"){
-   for(const key of ["brand","title","subtitle"])
-    if(typeof saved[key]==="string"&&saved[key].trim())appearance[key]=saved[key].slice(0,key==="subtitle"?130:80);
-   if(accentOptions.includes(saved.accent))appearance.accent=saved.accent;
-   if(heroOptions.includes(saved.hero))appearance.hero=saved.hero;
-  }
- }catch(e){}
- // Earlier browser-customized default headings can still list removed categories.
- if(/bioboden|teppich|pvc|zubehör/i.test(appearance.subtitle))
-  appearance.subtitle=STANDARD_STYLE.subtitle;
+ try{appearance=validateAppearance(JSON.parse(localStorage.getItem(APPEARANCE_KEY)||"null"));}
+ catch(e){appearance={...STANDARD_STYLE};}
  updateAppearance();
 }
 function updateAppearance(){
  document.documentElement.style.setProperty("--accent",appearance.accent);
  document.documentElement.style.setProperty("--hero",appearance.hero);
+ document.documentElement.style.setProperty("--base",appearance.background);
+ document.documentElement.style.setProperty("--ink",appearance.ink);
  el("brandLabel").textContent=appearance.brand;
  el("pageHeading").textContent=appearance.title;
  el("pageSubtitle").textContent=appearance.subtitle;
+ el("overviewTagline").textContent=appearance.overview;
+ el("productsTab").textContent=appearance.tabProducts;
+ el("comparisonTab").textContent=appearance.tabCompare;
  document.title=appearance.title+" · MarktRadar";
- el("editorBrand").value=appearance.brand;
- el("editorTitle").value=appearance.title;
- el("editorSubtitle").value=appearance.subtitle;
- el("editorAccent").value=appearance.accent;
- el("editorTheme").value=appearance.hero;
- el("hero").classList.toggle("light",appearance.hero==="#ffffff");
+ for(const [id,key]of [["editorBrand","brand"],["editorTitle","title"],
+  ["editorSubtitle","subtitle"],["editorOverviewText","overview"],
+  ["editorTabProducts","tabProducts"],["editorTabCompare","tabCompare"],
+  ["editorAccent","accent"],["editorTheme","hero"],
+  ["editorBackground","background"],["editorTextColor","ink"]]){
+  el(id).value=appearance[key];
+ }
+ const logo=el("brandLogo"),preview=el("editorLogoPreview");
+ logo.hidden=!appearance.logo;
+ if(appearance.logo)logo.src=appearance.logo;
+ const image=pendingLogo===null?appearance.logo:pendingLogo;
+ preview.hidden=!image;
+ if(image)preview.src=image;
+ const color=appearance.hero.slice(1);
+ const rgb=[0,2,4].map(i=>parseInt(color.slice(i,i+2),16));
+ const luminance=(rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000;
+ el("hero").classList.toggle("light",luminance>=165);
 }
 function saveAppearance(){
- const brand=neat(el("editorBrand").value).slice(0,65);
- const title=neat(el("editorTitle").value).slice(0,80);
- const subtitle=neat(el("editorSubtitle").value).slice(0,130);
- if(!brand||!title){setStatus("Bitte eine Marken-Zeile und Überschrift eingeben.","warning");return;}
- appearance={brand,title,subtitle:subtitle||STANDARD_STYLE.subtitle,
-  accent:accentOptions.includes(el("editorAccent").value)?el("editorAccent").value:STANDARD_STYLE.accent,
-  hero:heroOptions.includes(el("editorTheme").value)?el("editorTheme").value:STANDARD_STYLE.hero};
- try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(appearance));}catch(e){setStatus("Darstellung konnte nicht gespeichert werden. Browserspeicher prüfen.","warning");return;}
- updateAppearance();
+ const fields={
+  brand:neat(el("editorBrand").value).slice(0,65),
+  title:neat(el("editorTitle").value).slice(0,80),
+  subtitle:neat(el("editorSubtitle").value).slice(0,130),
+  overview:neat(el("editorOverviewText").value).slice(0,190),
+  tabProducts:neat(el("editorTabProducts").value).slice(0,36),
+  tabCompare:neat(el("editorTabCompare").value).slice(0,36)
+ };
+ if(!fields.brand||!fields.title){setStatus("Markenzeile und Überschrift dürfen nicht leer sein.","warning");return;}
+ const next=validateAppearance({...appearance,...fields,
+  accent:el("editorAccent").value,hero:el("editorTheme").value,
+  background:el("editorBackground").value,ink:el("editorTextColor").value,
+  logo:pendingLogo===null?appearance.logo:pendingLogo
+ });
+ try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(next));}
+ catch(e){setStatus("Design zu groß für den Browserspeicher. Bitte ein kleineres Logo wählen.","warning");return;}
+ appearance=next;pendingLogo=null;updateAppearance();
  el("appearancePanel").hidden=true;
- setStatus("Darstellung für diesen Browser gespeichert. Scanner und Preise unverändert.","ok");
+ setStatus("Design gespeichert – der Scanner und die Produktdaten sind unverändert.","ok");
+}
+function previewLogo(){
+ const image=pendingLogo===null?appearance.logo:pendingLogo;
+ const preview=el("editorLogoPreview");
+ preview.hidden=!image;
+ if(image)preview.src=image;
+}
+function uploadLogo(){
+ const file=el("editorLogo").files?.[0];
+ if(!file)return;
+ if(!["image/png","image/jpeg","image/webp"].includes(file.type)||file.size>200000){
+  setStatus("Nur PNG, JPG oder WebP bis 200 KB. Bitte ein kleineres Logo auswählen.","warning");return;
+ }
+ const reader=new FileReader();
+ reader.onload=()=>{
+  if(!isLogo(reader.result)){setStatus("Logodatei nicht verwendbar.","warning");return;}
+  pendingLogo=reader.result;previewLogo();
+  setStatus("Logovorschau bereit. Klicke auf „Design speichern“, um das Logo zu übernehmen.","normal");
+ };
+ reader.onerror=()=>setStatus("Logodatei konnte nicht gelesen werden.","warning");
+ reader.readAsDataURL(file);
+}
+function exportAppearance(){
+ const blob=new Blob([JSON.stringify({type:"marktradar-design",version:1,appearance},null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob),anchor=node("a");
+ anchor.href=url;anchor.download="marktradar-design.json";anchor.click();
+ setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+function importAppearance(){
+ const file=el("editorImport").files?.[0];
+ if(!file)return;
+ if(file.size>350000){setStatus("Designdatei zu groß (maximal 350 KB).","warning");return;}
+ const reader=new FileReader();
+ reader.onload=()=>{
+  try{
+   const data=JSON.parse(reader.result);
+   if(data.type!=="marktradar-design"||!data.appearance)throw Error("Falsches Format");
+   const next=validateAppearance(data.appearance);
+   localStorage.setItem(APPEARANCE_KEY,JSON.stringify(next));
+   appearance=next;pendingLogo=null;updateAppearance();
+   setStatus("Design importiert und gespeichert. Produktdaten unverändert.","ok");
+  }catch(e){setStatus("Designdatei ungültig oder Browserspeicher voll.","warning");}
+ };
+ reader.onerror=()=>setStatus("Designdatei konnte nicht gelesen werden.","warning");
+ reader.readAsText(file);
 }
 const showEuro=n=>Number.isFinite(n)?n.toLocaleString("de-DE",{style:"currency",currency:"EUR"}):"–";
 const now=()=>new Date().toLocaleString("de-DE");
@@ -920,10 +998,14 @@ restore();
 loadAppearance();
 el("appearanceButton").onclick=()=>{el("appearancePanel").hidden=!el("appearancePanel").hidden;};
 el("editorSave").onclick=saveAppearance;
+el("editorLogo").onchange=uploadLogo;
+el("removeLogo").onclick=()=>{pendingLogo="";previewLogo();setStatus("Logo zum Entfernen vorgemerkt. Bitte Design speichern.","normal");};
+el("editorExport").onclick=exportAppearance;
+el("editorImport").onchange=importAppearance;
 el("editorReset").onclick=()=>{
- appearance={...STANDARD_STYLE};
+ appearance={...STANDARD_STYLE};pendingLogo=null;
  try{localStorage.removeItem(APPEARANCE_KEY);}catch(e){}
- updateAppearance();setStatus("Standarddarstellung wiederhergestellt.","ok");
+ updateAppearance();setStatus("Standarddesign wiederhergestellt.","ok");
 };
 el("clearCompare").onclick=()=>{state.manualCompare=[];render();};
 for(const side of ["A","B"]){
