@@ -379,12 +379,17 @@ function render(){
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
+function remainingRequests(){
+ try{return Math.max(0,FREE_DAILY_MAX-Number(localStorage.getItem(allowanceKey())||0));}
+ catch(e){return 0;} // If storage is blocked, avoid unbounded usage.
+}
 function availableRequest(){
- let used=0;
- try{used=Number(localStorage.getItem(allowanceKey())||0);}catch(e){}
- if(used>=FREE_DAILY_MAX)return false;
- try{localStorage.setItem(allowanceKey(),String(used+1));}catch(e){}
- return true;
+ if(remainingRequests()<=0)return false;
+ try{
+  const used=FREE_DAILY_MAX-remainingRequests();
+  localStorage.setItem(allowanceKey(),String(used+1));
+  return true;
+ }catch(e){return false;}
 }
 async function api(site,action,extra){
  if(!availableRequest())throw Error("Kostenlose Sicherheitsgrenze von 180 Scan-Anfragen pro Tag erreicht. Morgen erneut versuchen.");
@@ -576,7 +581,14 @@ async function scanAll(restart){
   for(const shop of shops){
    setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
    try{
-    const result=await scanShop(shop,restart);
+    let result=null;
+    for(let round=0;round<2;round++){
+     if(remainingRequests()<8)break;
+     setStatus(shop.name+": Katalog-Etappe "+(round+1)+" von maximal 2. Bitte den Tab geöffnet lassen.","normal");
+     result=await scanShop(shop,restart&&round===0);
+     if(result.blocked||result.complete||result.remaining===0)break;
+    }
+    if(!result){outcomes.push(shop.name+": Gratisbudget für diesen Browser ausgeschöpft.");continue;}
     outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" €/m²-Preise"+
      (result.blocked?" · Abruf eingeschränkt":
      result.complete?" · Durchlauf abgeschlossen":" · Scan unvollständig")+
