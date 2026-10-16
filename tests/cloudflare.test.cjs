@@ -162,3 +162,40 @@ test("Unit-safe price reduction is not inferred from package price",()=>{
  assert.equal(p.oldPrice,null);
  assert.equal(p.discountPct,null);
 });
+
+test("Flat SEO product routes like Laminat DEPOT are discovered from category pages",()=>{
+ const shop=x.safeShop("https://laminatdepot.de/");
+ const html='<main><a href="/laminat">Laminat</a>'+
+  '<a href="/vinylboeden">Vinylböden</a>'+
+  '<a href="/laminat-bodomo-premium-schlossdiele-natur-100013100">'+
+  'Laminat Schlossdiele Natur Set inklusive Dämmung und Fußleiste '+
+  '8 mm Stärke | NK 32 | AC4 statt 26,39 €/m² Komplett-Set 19,99 €/m² Du sparst 6,40 €/m²</a></main>';
+ const result=x.list(html,shop,shop.root+"laminat");
+ assert.equal(result.urls.length,1);
+ assert.ok(result.jobs.some(j=>j.url===shop.root+"vinylboeden"));
+ assert.equal(result.products.length,1);
+ assert.equal(result.products[0].price,19.99);
+ assert.equal(result.products[0].category,"Laminat");
+ assert.equal(result.products[0].nk,"32");
+ assert.equal(result.products[0].provisional,true);
+});
+test("Long floor product page retains true price rather than accessory/savings figures",()=>{
+ const shop=x.safeShop("https://laminatdepot.de/");
+ const markup='<main><h1>Laminat Schlossdiele Natur</h1><div>'+
+   'Artikelbeschreibung '.repeat(1400)+'</div><section>'+
+   '8 mm Stärke | NK 32 | AC4 Boden 19,99 €/m², Basic Dämmung 0,00 €/m² '+ 
+   'Komplettpreis statt 26,39 19,99 €/m² Du sparst 6,40 €/m² '+
+   'Paketpreis 50,67 € | Inhalt 2,535 m²</section></main>';
+ const product=x.detail(markup,shop,shop.root+"laminat-bodomo-schlossdiele-natur-100013100");
+ assert.equal(product.price,19.99);
+ assert.equal(product.thickness,8);
+ assert.equal(product.nk,"32");
+ assert.equal(product.packM2,2.535);
+});
+test("Unlabeled prices are not invented from an unrelated category",()=>{
+ const shop=x.safeShop("https://laminatdepot.de/");
+ const html='<nav><a href="/laminat">Laminat</a></nav>'+
+  '<a href="/laminat-bodomo-premium-schlossdiele-natur-100013100">Laminat Eiche Natur</a>';
+ const result=x.list(html,shop,shop.root);
+ assert.equal(result.products[0].price,null);
+});
