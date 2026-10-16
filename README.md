@@ -1,4 +1,19 @@
-# MarktRadar 5.8 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.9 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.9 – Automatikmodus, genaue Bodenfilter und Designstudio
+
+**Automatischer Produktabgleich (kostenlos):** Standardmäßig ist „Automatische Produktprüfung“ aktiviert. Nach dem Laden des lokalen Katalogs beginnt bei einem geöffneten, sichtbaren Browser-Tab selbstständig eine Prüfetappe, wenn noch offene Shop-Aufgaben vorliegen oder der letzte Shopscan älter als 24 Stunden ist. Die automatische Wiederholung lässt sich auf 30 Minuten, 60 Minuten oder 3 Stunden einstellen oder per Checkbox deaktivieren. Die Einstellung wird getrennt vom Produktkatalog unter `marktradar:auto:v1` gespeichert.
+
+**Sicherheit bei automatischen Abrufen:** Bereits laufende Scans werden nicht doppelt gestartet. Ein kooperativer Browser-Tab-Sperrvermerk soll gleichzeitige automatische Scans mehrerer Tabs vermeiden. Blockierte Shops haben eine Abkühlphase von drei Stunden. Eine automatische Prüfetappe bleibt auf maximal 3,5 Minuten begrenzt und unterliegt dem bestehenden Tagesbudget. Offene Aufgaben werden später fortgesetzt. Der Scanner **arbeitet nicht weiter, wenn der Browser geschlossen oder der Tab unsichtbar ist**. Ein echter rund um die Uhr arbeitender Server-Scan würde eigene zentrale Speicherung und Cloudflare-Zeitpläne erfordern.
+
+**Dämmung und Zubehör zuverlässig ausschließen:** Auch frühere falsch als „Laminat“ gespeicherte Produkte mit Namen wie „Trittschalldämmung für Laminat“, „Unterlage für Laminat“ oder „Dämmmatte Vinyl“ werden aus Produktliste, Kennzahlen und Vergleich entfernt, ohne die alte Browser-Datenbank zu löschen. Die Backend-Erkennung ignoriert solche Produktkarten, URLs und Detailseiten. Tatsächliche Bodenbeläge mit ausdrücklich beigelegter Dämmung bleiben zulässig. Weiterhin nur Laminat, Vinyl/Rigid-Vinyl und Parkett.
+
+**Designstudio erweitert:** Zusätzlich zu eigenem Logo, Überschrift, Untertitel und Beschriftungen jetzt frei wählbare Karten- und Rahmenfarben, Schriftfamilie, Schriftgröße, Abstände, Kartenradien, Seitenbreite, Kartenschatten und vier Designvorlagen. Vorschau anzeigen, speichern oder über JSON importieren/exportieren. **„Logo sofort entfernen“** löscht das gespeicherte Logo per Klick und bleibt auch nach Aktualisieren der Seite wirksam. Das Design bleibt unabhängig von Scanner- und Produktdaten und gilt ohne Import nur im aktuellen Browser.
+
+**Zuverlässigere Wiederaufnahme:** Neue Scan-Warteschlangen und gespeicherte Zwischenstände verwenden dieselbe Scanner-Engine-Version. Dadurch soll die Prüfung die offenen Seiten fortsetzen, statt bei jeder Etappe erneut am Kataloganfang zu starten.
+
+**Grenzen:** Der Automatikmodus garantiert weder eine vollständige Kopie fremder Shops noch Preise, die nur per JavaScript zugänglich sind oder durch Zugriffsbeschränkungen geschützt werden. Erforderliche externe Zugriffserlaubnisse und kostenlose Cloudflare-Kontingente werden nicht umgangen.
+
 
 ## MarktRadar 5.8 – Bodenarten-Bestpreise, volle Produktliste und Vergleichsstart
 
