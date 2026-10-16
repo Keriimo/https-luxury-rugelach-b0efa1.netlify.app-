@@ -43,15 +43,15 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops};})();');
  new Function("document","window","localStorage","navigator",exposed)(
   document,window,localStorage,{clipboard:{}});
- return {state:window.__marketRadarTest.state,api:window.__marketRadarTest,
+ return {window,state:window.__marketRadarTest.state,api:window.__marketRadarTest,
   elements,localStorage,document,values};
 }
 test("Dashboard boots with available shop products and no network requests",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,4);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
  assert.equal(app.elements.get("shopCoverage").children.length,1);
  assert.equal(app.state.shops.length,2);
 });
@@ -109,7 +109,7 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:6/);
+ assert.match(source,/engineVersion:7/);
  assert.match(source,/for\(let round=0;round<rounds&&/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
@@ -118,15 +118,15 @@ test("All shops share the same bounded scanner and old products remain in storag
 });
 
 
-test("Only flooring and skirting categories appear in dropdown and radar",()=>{
+test("Only three flooring categories appear in dropdown and radar",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,4);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
  assert.match(html,/Vinyl \/ Rigid-Vinyl/);
  assert.doesNotMatch(html,/<option[^>]*>Teppich<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>PVC<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>Zubehör<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>Bioboden/i);
- assert.match(html,/<option value="Leisten">Fuß-\/Sockelleisten<\/option>/);
+ assert.doesNotMatch(html,/<option[^>]*value="Leisten"/);
 });
 test("Legacy unsupported products remain saved but are excluded from dashboards",()=>{
  const app=boot();
@@ -151,7 +151,7 @@ test("More than 300 floor products remain in browser storage without IndexedDB",
  const saved=JSON.parse(app.values.get("marktradar:catalog:v3"));
  assert.equal(saved.shops[0].items.length,340);
  app.api.render();
- assert.equal(app.elements.get("bestPriceGrid").children.length,4);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
 });
 
 test("Browser full scan is bounded, resumable and supports stopping",()=>{
@@ -166,7 +166,7 @@ test("Browser full scan is bounded, resumable and supports stopping",()=>{
 test("Unpriced saved products will be revisited in scanner v5",()=>{
  assert.match(source,/previous\.filter\(p=>p\?\.url&&isFloor\(p\)&&!validPrice\(p\)\)/);
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
- assert.match(source,/if\(saved&&saved\.engineVersion!==6\)saved=null/);
+ assert.match(source,/if\(saved&&saved\.engineVersion!==7\)saved=null/);
 });
 
 test("An unavailable optional Shopify feed never counts as a shop-wide failure",()=>{
@@ -180,32 +180,74 @@ test("Failed product pages are retried but ultimately counted as unresolved",()=
  assert.match(source,/Produktseiten nicht prüfbar/);
 });
 
-test("Existing standalone skirting saved as generic Zubehör is shown without restoring other accessories",()=>{
+
+test("Price radar keeps Laminat DEPOT visible even with zero €/m² prices",()=>{
  const app=boot();
- const items=app.state.shops[0].items;
- items.push({category:"Zubehör",name:"Sockelleiste weiß 240 cm",price:8.99,unit:"Stück",
-  url:"https://laminatdepot.de/sockelleiste-weiss"});
- items.push({category:"Zubehör",name:"Trittschalldämmung 2 mm",price:1.99,unit:"m²",
-  url:"https://laminatdepot.de/trittschall"});
- app.api.render();
- const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
- assert.match(text(app.elements.get("bestPriceGrid")),/8,99/);
- assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/1,99/);
- assert.equal(app.state.shops[0].items.length,3);
-});
-test("Skirting board pieces and running-meter prices are separate rows",()=>{
- const app=boot();
- app.state.shops[0].items.push({category:"Leisten",name:"Fußleiste weiß",unit:"Stück",
-  price:8.95,url:"https://laminatdepot.de/fussleiste"});
- app.state.shops[1].items.push({category:"Leisten",name:"Sockelleiste weiß",unit:"m",
-  price:2.5,url:"https://laminat-shop24.com/sockelleiste"});
  app.state.tab="comparison";
  app.api.render();
  const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
- const content=text(app.elements.get("priceDuelHolder"));
- assert.match(content,/Fuß-\/Sockelleisten · laufender Meter/);
- assert.match(content,/Fuß-\/Sockelleisten · Stück/);
- assert.match(content,/2,50/);
- assert.match(content,/8,95/);
- assert.doesNotMatch(content,/6,45/); // Never subtract meter from piece pricing
+ const all=text(app.elements.get("priceDuelHolder"));
+ assert.match(all,/Laminat DEPOT/);
+ assert.match(all,/Laminat-Shop24/);
+ assert.match(all,/Noch kein geprüfter €/m²-Preis/);
+ assert.match(all,/13,99/);
+ assert.match(all,/Produkt und Preis prüfen/);
+});
+test("Explicit comparison shop selectors list both shops even without price",()=>{
+ const app=boot();
+ app.state.tab="comparison";app.api.render();
+ const left=app.elements.get("compareShopA"),right=app.elements.get("compareShopB");
+ assert.equal(left.value,"dep");
+ assert.equal(right.value,"sh24");
+ assert.equal(app.elements.get("compareProductA").children.length,2);
+ assert.equal(app.elements.get("compareProductB").children.length,2);
+ assert.equal(typeof app.elements.get("comparePriceA").onclick,"function");
+});
+test("Manually verified price survives in the existing catalog and no other product changes",()=>{
+ const app=boot();
+ const product=app.state.shops[0].items[0];
+ app.window.prompt=()=>"12,99";
+ app.window.confirm=()=>true;
+ const original=app.state.shops[1].items[0].price;
+ app.api.editProductPrice(app.state.shops[0],product);
+ assert.equal(product.price,12.99);
+ assert.equal(product.unit,"m²");
+ assert.equal(product.manualPrice,true);
+ assert.match(product.priceSource,/Manuell/);
+ assert.equal(app.state.shops[1].items[0].price,original);
+ assert.equal(JSON.parse(app.values.get("marktradar:catalog:v3")).shops[0].items[0].price,12.99);
+});
+test("Invalid or unconfirmed user price does not modify product catalog",()=>{
+ const app=boot();
+ const product=app.state.shops[0].items[0];
+ app.window.prompt=()=>"abc";
+ app.api.editProductPrice(app.state.shops[0],product);
+ assert.equal(product.price,null);
+ app.window.prompt=()=>"12,99";app.window.confirm=()=>false;
+ app.api.editProductPrice(app.state.shops[0],product);
+ assert.equal(product.price,null);
+});
+test("Design studio changes custom text/colors without overwriting saved shops",()=>{
+ const app=boot();
+ const before=app.values.get("marktradar:catalog:v3");
+ app.elements.get("editorTitle").value="Meine Marktübersicht";
+ app.elements.get("editorOverviewText").value="Alle Preise auf einen Blick";
+ app.elements.get("editorBackground").value="#fff2f1";
+ app.elements.get("editorTextColor").value="#123456";
+ app.elements.get("editorSave").click();
+ assert.equal(app.elements.get("pageHeading").textContent,"Meine Marktübersicht");
+ assert.equal(app.elements.get("overviewTagline").textContent,"Alle Preise auf einen Blick");
+ assert.equal(app.values.get("marktradar:catalog:v3"),before);
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).ink,"#123456");
+});
+test("Unsupported old skirting data remains archived but is absent in visible dashboard",()=>{
+ const app=boot();
+ const shop=app.state.shops[0];
+ shop.items.push({name:"Sockelleiste Eiche",category:"Leisten",price:9.99,unit:"Stück",
+  url:"https://laminatdepot.de/sockelleiste"});
+ app.api.render();
+ const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
+ assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/9,99/);
+ assert.doesNotMatch(text(app.elements.get("priceDuelHolder")),/Sockelleiste/);
+ assert.equal(shop.items.length,2);
 });
