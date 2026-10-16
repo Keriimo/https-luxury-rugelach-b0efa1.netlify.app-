@@ -265,7 +265,11 @@ function isCategory(url,label){
  if(segments.length>3)return false;
  const cat=/(?:^|[-_/])(?:alleboeden|alle-boeden|alle-produkte|laminat|vinylboeden|vinylboden|rigid|rigid-vinyl|parkett|bodenbelaege|bodenbelage|boeden|böden|designboden|angebote|bodenoutlet|sale)(?:$|[-_/])/i;
  if(cat.test(path)&&!isProduct(url))return true;
- if(/\/collections\/[^/]+$/i.test(path))return true;
+ if(/\/collections\/([^/]+)$/i.test(path)){
+  const slug=path.split("/").pop();
+  return /(?:laminat|vinyl|rigid|parkett|boden|all|sale|aktion)/i.test(slug)&&
+   !/(?:teppich|pvc|bioboden|kork|linoleum|zubehoer|zubehör|sockel|daemmung)/i.test(slug);
+ }
  if(segments.length<=2&&/^(?:laminat|vinylböden?|vinylboden|rigid-vinyl|parkett|alle böden|alle produkte|bodenbeläge|angebote|sale)$/i.test(clean(label)))return true;
  return false;
 }
