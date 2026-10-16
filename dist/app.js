@@ -743,7 +743,8 @@ async function scanShop(shop,restart,quick=false){
  const priced=[...scan.items.values()].filter(validPrice).length;
  const remaining=scan.jobs.length+scan.urls.length;
  return {complete:remaining===0&&!scan.truncated&&scan.failures===0&&scan.items.size>0,
-  count:scan.items.size,priced,remaining,failed:scan.failures,
+  count:scan.items.size,priced,unpriced:Math.max(0,scan.items.size-priced),
+  unresolved:scan.unresolved.length,remaining,failed:scan.failures,
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
@@ -775,7 +776,9 @@ async function scanAll(restart,deep=false,full=false){
      outcomes.set(shop.id,shop.name+": "+result.count+" erfasste Artikel, "+
        result.priced+" €/m²-Preise"+
        (result.blocked?" · Zugriff eingeschränkt":
-        result.complete?" · geprüft":" · Erfassung läuft")+
+        result.complete?" · erreichbare Aufgaben erledigt":" · Scan unvollständig")+
+       (result.unpriced?" · "+result.unpriced+" Artikel ohne verifizierten Preis":"")+
+       (result.unresolved?" · "+result.unresolved+" Produktseiten nicht prüfbar":"")+
        (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
        (result.diagnostic?" · "+result.diagnostic:""));
      if(result.blocked||result.complete||result.remaining===0)completed.add(shop.id);
