@@ -85,3 +85,7 @@ Filter, Katalogscan und Bestpreis-Dashboard führen Laminat, Vinyl/Rigid-Vinyl, 
 ## MarketRadar 5.7 – Shop-Mix und Designstudio
 
 Nach erfolgreichem Cloudflare-Deploy: mit Strg+F5 aktualisieren und Version 5.7 prüfen. In „Preisradar & Produktvergleich“ müssen beide ausgewählten Shops erscheinen, auch wenn ein Shop 0 automatische €/m²-Preise hat. Produktvergleich links/rechts über Shop- und Artikelauswahl. Preise nur manuell ergänzen, wenn im Originalshop überprüft. In „Designstudio“ Farben, Texte, Logo ändern und bei Bedarf eine portable JSON-Designdatei exportieren/importieren. Die Designdatei enthält gegebenenfalls das eingebettete Logo, aber keine Produktdaten. Nur Laminat, Vinyl/Rigid und Parkett werden gescannt.
+
+## 5.8 – Erfasste Bodenbeläge und echte Vergleiche
+
+Nach Cloudflare Ready Seite mit Strg+F5 neu laden: drei Kennzahlen „Laminat“, „Vinyl/Rigid-Vinyl“, „Parkett“, in der Produktliste Standard „Alle erfassten · alle Shops“, Filter für nur drei Bodenarten. Im „2-Produkte-Check“ beide Shop-/Artikelauswahlen festlegen und „Jetzt beide Produkte vergleichen“ anklicken. Ohne DEPOT-Preis trotzdem technische Eigenschaften; fehlender Preis bleibt unbestimmt. Bei größeren Katalogen den automatisch fortsetzbaren Scan bei geöffnetem Browser nutzen. Cloudflare und Shop-Zugriffe können volle Abdeckung begrenzen.
