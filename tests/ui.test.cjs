@@ -501,3 +501,47 @@ test("Automatic scan actually discovers, fetches, saves and resumes without repe
  assert.equal(requests.length,oldCount); // respects next interval
  assert.equal(app.values.get("marktradar:auto:lease:v1"),undefined);
 });
+
+test("SELITAC 2,2 mm Faltplatte never becomes the laminate best price even in an old cache",()=>{
+ const app=boot();
+ const shop=app.state.shops[1];
+ const name="SELITAC® 2,2 mm Faltplatte für Laminat";
+ shop.items.push({name,category:"Laminat",price:1.99,unit:"m²",
+  url:"https://laminat-shop24.com/products/selitac-r-2-2-mm-faltplatte-fur-laminat"});
+ shop.items.push({name:"SELITAC® 5 mm Faltplatte für Laminat",category:"Laminat",
+  price:3.99,unit:"m²",url:"https://laminat-shop24.com/products/selitac-5-mm-faltplatte"});
+ shop.items.push({name:"Laminat Eiche 8 mm inklusive Dämmung",category:"Laminat",
+  price:22.99,unit:"m²",url:"https://laminat-shop24.com/products/laminat-eiche-inklusive-daemmung"});
+ app.api.render();
+ const flattened=x=>[x?.textContent||"",...(x?.children||[]).map(flattened)].join(" ");
+ for(const id of ["bestPriceGrid","metrics","tableHolder","shopCoverage"]){
+  const value=flattened(app.elements.get(id));
+  assert.doesNotMatch(value,/SELITAC/i,id);
+  assert.doesNotMatch(value,/1,99/,id);
+ }
+ assert.match(flattened(app.elements.get("metrics")),/13,99/);
+ assert.match(flattened(app.elements.get("tableHolder")),/Laminat Eiche 8 mm inklusive Dämmung/);
+ app.state.tab="comparison";app.api.render();
+ assert.doesNotMatch(flattened(app.elements.get("priceDuelHolder")),/SELITAC/i);
+ assert.doesNotMatch(flattened(app.elements.get("compareProductB")),/SELITAC/i);
+ assert.equal(shop.items.length,4); // data left intact; filter applied at read time
+ app.api.save();
+ const cached=JSON.parse(app.values.get("marktradar:catalog:v3"));
+ assert.equal(cached.shops[1].items.length,4);
+});
+test("Known floor underlay families are rejected even if erroneously labeled laminate",()=>{
+ const app=boot();
+ const names=[
+  "SELITAC® 2,2 mm Faltplatte für Laminat",
+  "SELITBLOC® 1 mm GripTec für Klick-Vinyl",
+  "SELITAC® 5 mm Faltplatte für Laminat",
+  "Dämmunterlage Acoustic Board Basic",
+  "Sound Eliminator Trittschalldämmung 15m²",
+  "Dampfbremsfolie PE für Laminat",
+  "Faltmatte für Laminat",
+  "Acoustic Board Basic für Parkett"
+ ];
+ for(const name of names)assert.equal(app.api.looksLikeFloorProduct({name,url:"https://laminat-shop24.com/products/product-foo"}),false,name);
+ assert.equal(app.api.looksLikeFloorProduct({name:"Laminat Eiche 8 mm inklusive Dämmung",
+  url:"https://laminat-shop24.com/products/laminat-eiche-inklusive-daemmung"}),true);
+});
