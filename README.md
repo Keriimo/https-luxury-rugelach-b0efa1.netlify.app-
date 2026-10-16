@@ -1,6 +1,15 @@
-# MarktRadar 5.2 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.3 — Cloudflare Free (kein kostenpflichtiges Abo)
 
-## MarktRadar 5.2 – Neues Vertriebs-Dashboard
+## MarktRadar 5.3 – gleichmäßiger Scan und verlässliches Preisduell
+
+- **Laminat DEPOT und alle anderen Shops:** Der Katalogscan erkennt nun auch flache Produktadressen wie `/laminat-bodomo-premium-schlossdiele-natur-100013100`. Auf Kategorie- und Listenseiten ausdrücklich am Produkt angezeigte €/m²-Preise werden sofort erfasst. Ein Preis aus der Produktliste wird sichtbar als vorläufig gekennzeichnet; Artikelquelle prüfen.
+- **Faire Scan-Reihenfolge:** Jede ausgewählte Shopadresse wird mit derselben technischen Scan-Konfiguration bearbeitet; bei mehreren Shops wechseln sich die Prüfetappen ab. Die Anzahl tatsächlich auslesbarer Produkte kann trotzdem je Shop abweichen (Sitemaps, technische Zugriffe, Webseitenstruktur).
+- **Alte Daten schützen:** Der bisherige Speicherschlüssel `marktradar:catalog:v3` bleibt bestehen. Veraltete Scan-Warteschlangen werden beim nächsten Scan neu aufgebaut, bereits erfasste Produkte bleiben erhalten. Es gibt keinen automatischen Datenverlust.
+- **Preisduell statt automatischer Fehlzuordnung:** Der Reiter „Preisduell & 2er-Check“ zeigt je Bodenart den niedrigsten **erfassten** Preis pro Shop und den Abstand zu anderen Angeboten derselben Kategorie. **Das sind möglicherweise verschiedene Böden**, daher keine Behauptung gleicher Qualität oder Produkte. Zwei ausdrücklich ausgewählte Artikel werden weiterhin technisch gegenübergestellt; fehlende Preise werden nicht erfunden.
+- **Keine Vollständigkeitsgarantie:** Allgemeine Scanregeln unterstützen viele Shops. Shops mit Bot-Schutz, JavaScript-Preisen, unzugänglichen Sitemaps oder anderen Seitentypen können weiterhin unvollständig sein.
+
+
+## MarktRadar 5.2 – Neues Vertriebs-Dashboard (weiter enthalten)
 
 Die Benutzeroberfläche kann jetzt unmittelbar im Browser angepasst werden: oben rechts **Darstellung anpassen** auswählen und Marke, Überschrift, Untertitel sowie Rot-/Dunkelblau-Farben verändern. Die Darstellung wird **nur auf diesem Gerät** gespeichert und beeinflusst den Scanner nicht. Es ist kein offizielles Unternehmensdesign oder eine offizielle LaminatDEPOT-Anwendung.
 
