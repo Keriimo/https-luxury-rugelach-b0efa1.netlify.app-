@@ -51,7 +51,7 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[]};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
  subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²",
@@ -350,7 +350,7 @@ function compareSelectionChanged(){
 }
 function toggleManualProduct(p){
  const key=p.shopId+"|"+p.url;
- const idx=state.manualCompare.findIndex(x=>x.shopId+"|"+x.url===key);
+ const idx=state.manualCompare.findIndex(x=>x&&x.shopId+"|"+x.url===key);
  if(idx>=0)state.manualCompare.splice(idx,1);
  else{
   if(state.manualCompare.length>=2)state.manualCompare.shift();
@@ -360,9 +360,10 @@ function toggleManualProduct(p){
 }
 function renderManualComparison(){
  const label=el("manualSelectionLabel"),area=el("manualComparisonHolder");
- const count=state.manualCompare.length;
+ const selected=state.manualCompare.filter(Boolean);
+ const count=selected.length;
  label.textContent=count===0?"Wähle in der Produktliste zwei Artikel über „Vergleichen“ aus.":
-  count===1?"1 von 2 Artikeln ausgewählt: "+state.manualCompare[0].name:
+  count===1?"1 von 2 Artikeln ausgewählt: "+selected[0].name:
   "2 Produkte zum direkten Merkmalsvergleich ausgewählt";
  area.replaceChildren();
  if(count<2){
@@ -370,6 +371,7 @@ function renderManualComparison(){
   return;
  }
  const a=state.manualCompare[0],b=state.manualCompare[1];
+ if(!a||!b){area.append(node("p","empty","Bitte beide Seiten auswählen."));return;}
  const unitCheck=hasComparablePrice(a,b),sameCategory=a.category===b.category;
  const card=node("div","manual-card");
  const title=node("h3",null,"Manuell ausgewählter Produktvergleich");
@@ -558,7 +560,7 @@ function renderProducts(){
    priceCell,node("td",null,p.promotion||"–"));
   const source=node("td");source.append(productLink(p,"Angebot ↗"));row.append(source);
   const choice=node("td");
-  const selected=state.manualCompare.some(x=>x.shopId===p.shopId&&x.url===p.url);
+  const selected=state.manualCompare.some(x=>x&&x.shopId===p.shopId&&x.url===p.url);
   const action=btn(selected?"Abwählen":"Vergleichen",()=>toggleManualProduct(p),selected?"active":"secondary");
   choice.append(action);row.append(choice);tbody.append(row);
  }
@@ -613,7 +615,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison"){renderPriceDuel();renderManualComparison();}
+ if(state.tab==="comparison"){renderPriceDuel();fillCompareShops();renderManualComparison();}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
@@ -924,6 +926,19 @@ el("editorReset").onclick=()=>{
  updateAppearance();setStatus("Standarddarstellung wiederhergestellt.","ok");
 };
 el("clearCompare").onclick=()=>{state.manualCompare=[];render();};
+for(const side of ["A","B"]){
+ el("compareShop"+side).onchange=()=>{
+  state.compareShops[side]=el("compareShop"+side).value;
+  state.manualCompare[side==="A"?0:1]=null;
+  fillCompareProducts(side);renderManualComparison();
+ };
+ el("compareSearch"+side).oninput=()=>{
+  state.compareSearch[side]=el("compareSearch"+side).value;
+  fillCompareProducts(side);
+ };
+ el("compareProduct"+side).onchange=()=>selectCompareProduct(side);
+ el("comparePrice"+side).onclick=()=>editSelectedComparePrice(side);
+}
 el("diagnoseButton").onclick=runDiagnostics;
 el("addButton").onclick=addShop;
 el("scanButton").onclick=()=>scanAll(false,false);
