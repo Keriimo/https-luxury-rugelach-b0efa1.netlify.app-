@@ -1,4 +1,13 @@
-# MarktRadar 5.0 — Cloudflare Free (0 €)
+# MarktRadar 5.1.0 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## Stand 5.1.0
+
+Der Cloudflare-Scanner nutzt öffentliche Shopify-Kataloge, Produktseiten und Sitemaps (auch Hinweise aus `robots.txt`). Scans laufen in kleinen Etappen und können fortgesetzt werden. Shop-Sperren, Gratislimits, veraltete Preise und fehlende Daten werden sichtbar gekennzeichnet.
+
+**Wichtig:** Eine neue GitHub-Version ist erst nach erfolgreichem Cloudflare-Deployment live. GitHub-Commits allein ändern keine bereits veröffentlichte Webseite. Falls automatische Deployments ausbleiben, kann der konfigurierte `CLOUDFLARE_DEPLOY_HOOK` über den GitHub-Actions-Workflow den nächsten Cloudflare-Build anfordern.
+
+Die Browserdaten der alten Netlify-Domain werden **nicht** automatisch auf die neue Cloudflare-Domain übertragen. Die Webseite ist ohne Anmeldung benutzbar, Daten verschiedener Kollegen werden aber nicht automatisch synchronisiert. Nutze bei Bedarf „Gefilterte Tabelle kopieren“, um Ergebnisse ohne Download in Excel Online einzufügen.
+
 
 Die bisherige Netlify-Version bleibt wegen ausgeschöpfter Gratis-Credits auf dem letzten veröffentlichten Stand. Für neue Veröffentlichungen ist **Cloudflare Pages Free** vorgesehen.
 
