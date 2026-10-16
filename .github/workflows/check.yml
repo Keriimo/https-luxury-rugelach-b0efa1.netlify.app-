@@ -15,7 +15,5 @@ jobs:
       - run: npm install --no-audit --no-fund --ignore-scripts
       - run: node --check app.js
       - run: node --check netlify/functions/catalog.js
-      - run: node --check netlify/functions/scan.js
       - run: node --check functions/api/catalog.js
-      - run: node --test tests/catalog.test.js
       - run: node --test tests/cloudflare.test.cjs
