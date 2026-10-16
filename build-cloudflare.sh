@@ -8,5 +8,5 @@ node --check functions/api/catalog.js
 node --test tests/cloudflare.test.cjs
 
 mkdir -p dist
-cp index.html app.js _routes.json dist/
+cp index.html app.js _routes.json _headers dist/
 echo "MarktRadar Cloudflare Free: validation passed, static files ready."
