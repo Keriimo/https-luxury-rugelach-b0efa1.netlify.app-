@@ -146,3 +146,19 @@ test("Discount and sale wording in a global menu does not create a false offer",
  assert.equal(p.price,14.99);
  assert.equal(p.promotion,"");
 });
+
+test("Sale price wins over UVP, old prices and savings",()=>{
+ const a=x.meterPrice("statt 19,99 € /m² jetzt 12,99 € /m²",null,null);
+ assert.equal(a.price,12.99);
+ assert.equal(a.oldPrice,19.99);
+ const b=x.meterPrice("Alter Preis pro m²: 19,99 € Preis pro m²: 12,99 €",null,null);
+ assert.equal(b.price,12.99);
+ assert.equal(x.meterPrice("UVP 29,99 € /m²",null,null).price,null);
+ assert.equal(x.meterPrice("ab 9,99 € /m²",null,null).price,null);
+});
+test("Unit-safe price reduction is not inferred from package price",()=>{
+ const p=x.meterPrice("Paket-UVP: 49,99 € Heute 24,99 € /m²",null,null);
+ assert.equal(p.price,24.99);
+ assert.equal(p.oldPrice,null);
+ assert.equal(p.discountPct,null);
+});
