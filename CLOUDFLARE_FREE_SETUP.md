@@ -11,7 +11,7 @@
 5. **Build command**: `sh build-cloudflare.sh`.
 6. **Build output directory / Publish directory**: `dist`.
 7. Speichern und veröffentlichen. Cloudflare erzeugt eine neue Adresse unter `*.pages.dev`.
-8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.5.0-free"` erscheinen.
+8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.6.0-free"` erscheinen.
 9. MarktRadar öffnen und den Button **Verbindung prüfen** klicken. Anschließend mit nur einem Shop einen kleinen Scan starten.
 
 **Wichtig:** Die alte Netlify-Adresse wird durch die Veröffentlichung bei Cloudflare NICHT automatisch aktualisiert. Kollegen benötigen später den neuen Cloudflare-Link.
@@ -77,3 +77,7 @@ Beim erneuten Scan werden ältere Scan-Warteschlangen aktualisiert. Gespeicherte
 ## MarktRadar 5.5 – Vollscan
 
 Für bereits erfasste Produkte ohne Preis wird beim nächsten Scan eine neue Prüfwarteschlange erzeugt. Der neue Button „Alle offenen Aufgaben automatisch prüfen“ arbeitet bis zu 15 Minuten, sofern der Tab geöffnet bleibt. Bisherige Daten gehen nicht verloren. Ein Abbruch wegen Cloudflare-Free-Budget, Shop-Zugriffssperren oder wiederholt unerreichbaren Produkten bedeutet ausdrücklich **keinen vollständigen Katalogscan**.
+
+## Version 5.6 – Nur Bodenbeläge und Leisten
+
+Filter, Katalogscan und Bestpreis-Dashboard führen Laminat, Vinyl/Rigid-Vinyl, Parkett sowie Fuß-/Sockelleisten. Keine weiteren Zubehörprodukte. Leisten je Meter und je Stück getrennt darstellen; keine Preisberechnung aus unbeschrifteten Paket- oder Gesamtpreisen. Der Browser speichert Daten weiterhin unter `marktradar:catalog:v3`, die Scanwarteschlange wird auf die neue Version aktualisiert.
