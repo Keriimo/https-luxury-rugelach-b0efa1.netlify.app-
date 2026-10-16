@@ -56,8 +56,28 @@ async function getText(site,url){
   if(ct&&!/(?:html|xml|json|text)/i.test(ct))throw Error("Kein lesbares Dokument");
   const size=Number(response.headers.get("content-length")||0);
   if(size>MAX_HTML)throw Error("Katalogseite zu groß");
-  const body=await response.text();
-  return {url:next,body:body.slice(0,MAX_HTML)};
+  // Stream the body with a firm byte limit, including chunked responses.
+  // Do not silently truncate an XML or JSON catalog into misleading data.
+  const reader=response.body?.getReader();
+  if(!reader){
+   const body=await response.text();
+   if(body.length>MAX_HTML)throw Error("Shopseite zu groß");
+   return {url:next,body};
+  }
+  const decoder=new TextDecoder(),fragments=[];
+  let bytes=0;
+  while(true){
+   const chunk=await reader.read();
+   if(chunk.done)break;
+   bytes+=chunk.value.byteLength;
+   if(bytes>MAX_HTML){
+    await reader.cancel().catch(()=>{});
+    throw Error("Shopseite zu groß (Gratislimit pro Abruf)");
+   }
+   fragments.push(decoder.decode(chunk.value,{stream:true}));
+  }
+  fragments.push(decoder.decode());
+  return {url:next,body:fragments.join("")};
  }
  throw Error("Zu viele Weiterleitungen");
 }
@@ -235,7 +255,7 @@ export async function onRequestPost({request}){
    const jobs=[{type:"map",url:site.root+"sitemap.xml"},{type:"list",url:site.start}];
    const urls=isProduct(site.start)?[site.start]:[];
    if(site.root!==site.start)jobs.push({type:"list",url:site.root});
-   return json({site:site.root,jobs,urls,checkedAt:new Date().toISOString()});
+   return json({site:site.root,jobs,urls,checkedAt:new Date().toISOString(),version:VERSION});
   }
   if(action==="probe"){
    const response=await getText(site,site.start);
