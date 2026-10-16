@@ -60,10 +60,10 @@ test("Category price duel shows missing prices instead of invented advantages",(
  app.state.tab="comparison";
  app.api.render();
  const holder=app.elements.get("priceDuelHolder");
- assert.equal(holder.children.length,1);
+ assert.equal(holder.children.length,2);
  const textContent=node=>[node.textContent||"",...(node.children||[]).map(textContent)].join(" ");
  const content=textContent(holder);
- assert.match(content,/Kein Preis erfasst/);
+ assert.match(content,/Noch kein geprüfter €\/m²-Preis/);
  assert.match(content,/13,99/);
  assert.doesNotMatch(content,/direkt vergleichbar|Vergleichsvorschläge/i);
 });
@@ -189,7 +189,7 @@ test("Price radar keeps Laminat DEPOT visible even with zero €/m² prices",()=
  const all=text(app.elements.get("priceDuelHolder"));
  assert.match(all,/Laminat DEPOT/);
  assert.match(all,/Laminat-Shop24/);
- assert.match(all,/Noch kein geprüfter €/m²-Preis/);
+ assert.match(all,/Noch kein geprüfter €\/m²-Preis/);
  assert.match(all,/13,99/);
  assert.match(all,/Produkt und Preis prüfen/);
 });
