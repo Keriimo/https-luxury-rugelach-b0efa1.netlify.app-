@@ -217,7 +217,7 @@ test("Only laminate, parquet and vinyl/rigid vinyl; reject other floor materials
   ["Trittschalldämmung für Laminat",null]
  ])assert.equal(x.typeOf(label),expected,label);
 });
-test("LaminatDEPOT Komplettpreis wins over crossed-out prices and derives a genuine advertised saving",()=>{
+test("LaminatDEPOT matching Komplettpreis preserves floor price and advertised saving",()=>{
  const site=x.safeShop("https://laminatdepot.de/");
  const html='<main><h1>Laminat BoDomo Klassik Modern Grau</h1>'+
   '<p>Boden 12,99 €/m² + inkl. Basic Dämmung 0,00 €/m² + inkl. Fußleiste 0,00 €/m</p>'+
@@ -226,7 +226,7 @@ test("LaminatDEPOT Komplettpreis wins over crossed-out prices and derives a genu
  const product=x.detail(html,site,site.root+"laminat-bodomo-klassik-modern-grau-100029402");
  assert.equal(product.price,12.99);
  assert.equal(product.oldPrice,17.73);
- assert.equal(product.priceSource,"Komplettpreis €/m² auf Produktseite");
+ assert.equal(product.priceSource,"Bodenpreis €/m² auf Produktseite");
  assert.equal(product.unit,"m²");
  assert.equal(product.packM2,2.494);
 });
@@ -423,4 +423,15 @@ test("Laminat DEPOT ignores free underlay when a floor price is absent",()=>{
  const html='<main><h1>Laminat Eiche 8 mm</h1><div>inkl. Basic Dämmung 0,00 €/m²</div></main>';
  const p=x.detail(html,store,store.root+'laminat-eiche-100032934');
  assert.equal(p.price,null);
+});
+
+test("A different set price never adds a discount to the floor price",()=>{
+ const site=x.safeShop("https://laminatdepot.de");
+ const p=x.detail('<main><h1>Laminat Eiche 8 mm</h1>'+
+  '<p>Boden 12,99 €/m² + inkl. Dämmung 0,00 €/m²</p>'+
+  '<p>Komplettpreis statt 25,99 €/m² 19,99 €/m² Du sparst 6,00 €/m²</p></main>',
+  site,site.root+'laminat-eiche-100032934');
+ assert.equal(p.price,12.99);
+ assert.equal(p.oldPrice,null);
+ assert.equal(p.discountPct,null);
 });
