@@ -1,7 +1,7 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.0-free";
-const MAX_HTML = 850000;
+const VERSION = "5.1.0-free";
+const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
 function number(value){
@@ -19,7 +19,8 @@ function safeShop(input){
   !/^([a-z0-9-]+\.)+[a-z]{2,63}$/.test(h)||
   h.endsWith(".local")||h.endsWith(".internal")||h.endsWith(".test")||
   h.endsWith(".invalid")||h.endsWith(".example")||h.endsWith(".localhost")||
-  h.endsWith(".onion")||h.endsWith(".pages.dev")||h.endsWith(".workers.dev"))
+  h.endsWith(".onion")||h.endsWith(".pages.dev")||h.endsWith(".workers.dev")||
+  h.endsWith(".nip.io")||h.endsWith(".sslip.io")||h.endsWith(".localtest.me"))
   throw Error("Nur öffentliche HTTPS-Shopdomains erlaubt");
  return {host:h,root:"https://"+u.hostname+"/",start:"https://"+u.hostname+u.pathname+u.search};
 }
@@ -121,7 +122,7 @@ function meterPrice(text,structured,pack){
    price=n;unit="Stück";priceSource="strukturierter Stückpreis";
   }
  }
- const isPromo=/(Aktionspreis|Angebotspreis|Rabatt|reduziert|Sale|Restposten)/i.test(t.slice(0,500));
+ const isPromo=/(Aktionspreis|Angebotspreis|\bRabatt\b|\breduziert\b|\bRestposten\b)/i.test(t.slice(0,700));
  return {price,unit,priceSource,oldPrice:null,discountPct:null,promotion:isPromo?"Aktionshinweis":""};
 }
 function productJson(html){
@@ -150,8 +151,10 @@ function detail(html,site,url){
  const h=html.match(/<h1\b[^>]*>([\s\S]*?)<\/h1>/i);
  const og=html.match(/<meta\b[^>]*property=["']og:title["'][^>]*content=["']([^"']+)/i);
  const title=nameClean(ld?.name||strip(h?.[1])||decode(og?.[1])||"");
- const text=strip(html).slice(0,9000);
- const category=typeOf(title)||typeOf([ld?.category||"",ld?.description||"",text.slice(0,650)].join(" "));
+ const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+ const content=main?main[1]:html.slice(Math.max(0,html.indexOf(h?.[0]||"")||0));
+ const text=strip(content).slice(0,12000);
+ const category=typeOf(title)||typeOf([ld?.category||"",ld?.description||"",text.slice(0,450)].join(" "));
  if(!title||title.length<5||!category)return null;
  const extra=attrs(text,title),price=meterPrice(text,ld,extra.packM2);
  return {name:title,url,category,...extra,...price,brand:trim(ld?.brand?.name||""),
@@ -230,8 +233,9 @@ export async function onRequestPost({request}){
   const site=safeShop(input.site);
   if(action==="discover"){
    const jobs=[{type:"map",url:site.root+"sitemap.xml"},{type:"list",url:site.start}];
+   const urls=isProduct(site.start)?[site.start]:[];
    if(site.root!==site.start)jobs.push({type:"list",url:site.root});
-   return json({site:site.root,jobs,checkedAt:new Date().toISOString()});
+   return json({site:site.root,jobs,urls,checkedAt:new Date().toISOString()});
   }
   if(action==="probe"){
    const response=await getText(site,site.start);
