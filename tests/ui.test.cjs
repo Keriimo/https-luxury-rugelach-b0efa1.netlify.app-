@@ -51,7 +51,7 @@ function boot(withProducts=true){
 }
 test("Dashboard boots with available shop products and no network requests",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,4);
  assert.equal(app.elements.get("shopCoverage").children.length,1);
  assert.equal(app.state.shops.length,2);
 });
@@ -109,7 +109,7 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:5/);
+ assert.match(source,/engineVersion:6/);
  assert.match(source,/for\(let round=0;round<rounds&&/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
@@ -118,14 +118,15 @@ test("All shops share the same bounded scanner and old products remain in storag
 });
 
 
-test("Only three supported floor categories appear in dropdown and radar",()=>{
+test("Only flooring and skirting categories appear in dropdown and radar",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,4);
  assert.match(html,/Vinyl \/ Rigid-Vinyl/);
  assert.doesNotMatch(html,/<option[^>]*>Teppich<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>PVC<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>Zubehör<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>Bioboden/i);
+ assert.match(html,/<option value="Leisten">Fuß-\/Sockelleisten<\/option>/);
 });
 test("Legacy unsupported products remain saved but are excluded from dashboards",()=>{
  const app=boot();
@@ -150,7 +151,7 @@ test("More than 300 floor products remain in browser storage without IndexedDB",
  const saved=JSON.parse(app.values.get("marktradar:catalog:v3"));
  assert.equal(saved.shops[0].items.length,340);
  app.api.render();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,4);
 });
 
 test("Browser full scan is bounded, resumable and supports stopping",()=>{
@@ -165,7 +166,7 @@ test("Browser full scan is bounded, resumable and supports stopping",()=>{
 test("Unpriced saved products will be revisited in scanner v5",()=>{
  assert.match(source,/previous\.filter\(p=>p\?\.url&&isFloor\(p\)&&!validPrice\(p\)\)/);
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
- assert.match(source,/if\(saved&&saved\.engineVersion!==5\)saved=null/);
+ assert.match(source,/if\(saved&&saved\.engineVersion!==6\)saved=null/);
 });
 
 test("An unavailable optional Shopify feed never counts as a shop-wide failure",()=>{
@@ -177,4 +178,34 @@ test("Failed product pages are retried but ultimately counted as unresolved",()=
  assert.match(source,/times<3/);
  assert.match(source,/scan\.unresolved\.push\(url\)/);
  assert.match(source,/Produktseiten nicht prüfbar/);
+});
+
+test("Existing standalone skirting saved as generic Zubehör is shown without restoring other accessories",()=>{
+ const app=boot();
+ const items=app.state.shops[0].items;
+ items.push({category:"Zubehör",name:"Sockelleiste weiß 240 cm",price:8.99,unit:"Stück",
+  url:"https://laminatdepot.de/sockelleiste-weiss"});
+ items.push({category:"Zubehör",name:"Trittschalldämmung 2 mm",price:1.99,unit:"m²",
+  url:"https://laminatdepot.de/trittschall"});
+ app.api.render();
+ const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
+ assert.match(text(app.elements.get("bestPriceGrid")),/8,99/);
+ assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/1,99/);
+ assert.equal(app.state.shops[0].items.length,3);
+});
+test("Skirting board pieces and running-meter prices are separate rows",()=>{
+ const app=boot();
+ app.state.shops[0].items.push({category:"Leisten",name:"Fußleiste weiß",unit:"Stück",
+  price:8.95,url:"https://laminatdepot.de/fussleiste"});
+ app.state.shops[1].items.push({category:"Leisten",name:"Sockelleiste weiß",unit:"m",
+  price:2.5,url:"https://laminat-shop24.com/sockelleiste"});
+ app.state.tab="comparison";
+ app.api.render();
+ const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
+ const content=text(app.elements.get("priceDuelHolder"));
+ assert.match(content,/Fuß-\/Sockelleisten · laufender Meter/);
+ assert.match(content,/Fuß-\/Sockelleisten · Stück/);
+ assert.match(content,/2,50/);
+ assert.match(content,/8,95/);
+ assert.doesNotMatch(content,/6,45/); // Never subtract meter from piece pricing
 });
