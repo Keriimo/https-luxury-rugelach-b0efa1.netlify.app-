@@ -516,11 +516,16 @@ async function scanShop(shop,restart){
       if(data.truncated)scan.truncated=true;
      }
     }catch(e){
-     const label=fail(e,job.type);
-     // A blocked shop should not be retried continuously.
-     if(scan.blocked)scan.jobs.unshift(job);
-     else scan.visitedJobs.add(key);
-     if(["map","robots"].includes(job.type)&&label==="Seite nicht gefunden")scan.failures--;
+     const label=errorKind(e);
+     // Not every shop publishes a Shopify feed or these optional sitemap paths.
+     if(label==="Seite nicht gefunden"&&["shopify","map","robots"].includes(job.type)){
+      scan.visitedJobs.add(key);
+     }else{
+      fail(e,job.type);
+      // If blocked, keep the exact task for a later manual retry.
+      if(scan.blocked)scan.jobs.unshift(job);
+      else scan.visitedJobs.add(key);
+     }
     }
    }
   }else if(scan.urls.length&&detailsDone<maxDetails){
@@ -556,9 +561,10 @@ async function scanShop(shop,restart){
  progress();
  const priced=[...scan.items.values()].filter(validPrice).length;
  const remaining=scan.jobs.length+scan.urls.length;
- return {complete:remaining===0&&!scan.truncated&&scan.failures===0,
+ return {complete:remaining===0&&!scan.truncated&&scan.failures===0&&scan.items.size>0,
   count:scan.items.size,priced,remaining,failed:scan.failures,
-  diagnostic:scan.errors.slice(-2).join("; "),blocked:scan.blocked};
+  diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
+    scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
 async function scanAll(restart){
  if(state.busy)return;
