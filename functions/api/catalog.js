@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.5.0-free";
+const VERSION = "5.6.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -90,17 +90,55 @@ const strip=html=>clean(decode(String(html||"").replace(/<script\b[^>]*>[\s\S]*?
   .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi," ")
   .replace(/<[^>]*>/g," ")));
 const FLOOR_TYPES=["Laminat","Vinyl","Parkett"];
+const SUPPORTED_TYPES=[...FLOOR_TYPES,"Leisten"];
+const SKIRTING_RE=/(?:fuß|fuss|sockel)[-\s]?leisten?|(?:fuß|fuss|sockel)[-\s]?leisten[-\s]?set/i;
 function typeOf(text){
  const t=clean(text).toLowerCase();
- // Exclude PVC-sheeting, carpet, bioboden, accessories and other materials.
- // The category MUST be found in the product's own title/type, never in the
- // global navigation on the same page.
- if(/(?:^|\b)(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)\b/.test(t))return null;
- if(/^(?:fußleiste|fussleiste|sockelleiste|dämmung|trittschall|unterlage|kleber|reiniger|abschlussprofil|zubehör)/.test(t))return null;
+ if(!t)return null;
+ if(/(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i.test(t))return null;
+ // Laminat inklusive Fußleisten is still laminate flooring, not a standalone
+ // skirting board. Everything else containing a skirting-board noun is Leisten.
+ if(SKIRTING_RE.test(t)){
+  const floorWithIncludedSkirting=/^(?:laminat|vinyl|rigid|parkett|designboden|klickvinyl)\b.*\b(?:inklusive|inkl\.?|mit)\s+.{0,45}(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(t);
+  if(!floorWithIncludedSkirting)return "Leisten";
+ }
+ if(/^(?:dämmung|trittschall|unterlage|kleber|reiniger|abschlussprofil|zubehör|montagekleber|pflege|fugenmasse|schienen)/i.test(t))return null;
  if(/parkett|fertigparkett|massivholz|schiffsboden/.test(t))return "Parkett";
  if(/laminat|laminate\b/.test(t))return "Laminat";
  if(/vinyl|rigid(?:[-\s]?vinyl)?|spc\b|lvt\b|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
  return null;
+}
+function skirtingPrice(text,structured){
+ const t=clean(text).slice(0,13000);
+ const specs=[
+  {unit:"m",patterns:[
+   /(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|je|pro)\s*(?:lfm|lfd\.?\s*m|laufend(?:er|en)?\s*meter|meter|m(?![²2a-z]))/gi,
+   /(?:Preis|Grundpreis|Meterpreis)\s*(?:pro|je)?\s*(?:lfm|lfd\.?\s*m|meter|m(?![²2a-z]))\s*[:\s-]*(\d{1,4}(?:[,.]\d{2}))\s*€/gi]},
+  {unit:"Stück",patterns:[
+   /(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|je|pro)\s*(?:stk\.?|stück|stueck|pce)\b/gi,
+   /(?:Stückpreis|Preis\s*(?:pro|je)\s*(?:Stück|Stk\.?))\s*:?\s*(\d{1,4}(?:[,.]\d{2}))\s*€/gi]}
+ ];
+ for(const spec of specs){
+  const found=[];
+  for(const pattern of spec.patterns)for(const m of t.matchAll(pattern)){
+   const before=t.slice(Math.max(0,m.index-45),m.index);
+   if(/(?:uvp|statt|alter\s*preis|ersparnis|ab)\s*:?\s*$/i.test(before))continue;
+   const n=number(m[1]);if(n&&n<1000)found.push({at:m.index,n});
+  }
+  if(found.length){
+   found.sort((a,b)=>a.at-b.at);
+   return {price:found[0].n,unit:spec.unit,priceSource:spec.unit==="m"?
+    "ausgewiesener Leistenpreis €/m":"ausgewiesener Leistenpreis €/Stück",
+    oldPrice:null,discountPct:null,promotion:""};
+  }
+ }
+ const offer=Array.isArray(structured?.offers)?structured.offers[0]:structured?.offers;
+ const amount=number(offer?.price||offer?.priceSpecification?.price);
+ const code=clean(offer?.priceSpecification?.unitCode||offer?.priceSpecification?.unitText||"");
+ const unit=/^(?:MTR|m|meter|lfm)$/i.test(code)?"m":
+   /^(?:C62|PCE|H87|Stück|Stk)$/i.test(code)?"Stück":null;
+ if(amount&&unit)return {price:amount,unit,priceSource:"strukturierter Leistenpreis",oldPrice:null,discountPct:null,promotion:""};
+ return {price:null,unit:null,priceSource:null,oldPrice:null,discountPct:null,promotion:""};
 }
 
 function nameClean(text){return trim(text).replace(/^[45][,.]\d\s*\(\d+\)\s*/,"").slice(0,160);}
@@ -228,8 +266,8 @@ function detail(html,site,url){
  const text=strip(content).slice(0,65000);
  const category=typeOf(title)||typeOf(ld?.category||"");
  if(!title||title.length<5||!category)return null;
- const extra=attrs(text,title),price=productPagePrice(text,ld,extra.packM2);
- if(price.price===null&&extra.packM2){
+ const extra=attrs(text,title),price=category==="Leisten"?skirtingPrice(text,ld):productPagePrice(text,ld,extra.packM2);
+ if(category!=="Leisten"&&price.price===null&&extra.packM2){
   const packageAmount=text.match(/Paketpreis\s*:?\s*(\d{1,4}(?:[,.]\d{2}))\s*€[^\d]{0,25}(?:\||\s)\s*Inhalt\s*:?\s*(\d+(?:[,.]\d+)?)\s*m²/i);
   if(packageAmount&&number(packageAmount[2])===extra.packM2&&extra.packM2>=0.1&&extra.packM2<=15){
    price.price=Math.round(number(packageAmount[1])/extra.packM2*100)/100;
@@ -279,7 +317,7 @@ function listingProduct(href,label,localText=""){
  // Prices must be printed next to this product, never borrowed from unrelated
  // page navigation, recommendations, or another product card.
  const own=localText||label;
- const price=productPagePrice(own,null,null),features=attrs(own,title);
+ const price=category==="Leisten"?skirtingPrice(own,null):productPagePrice(own,null,null),features=attrs(own,title);
  return {name:title,url:href,category,...features,...price,
    sourcePage:href,checkedAt:new Date().toISOString(),
    verified:price.price!==null,provisional:true};
@@ -371,7 +409,7 @@ function shopify(site,data){
   const body=strip(p.body_html||"").slice(0,5000);
   const category=typeOf(name)||typeOf(p.product_type||"");
   if(!url||!name||!category)continue;
-  const extra=attrs(body,name),price=meterPrice(body,null,extra.packM2);
+  const extra=attrs(body,name),price=category==="Leisten"?skirtingPrice(body,null):meterPrice(body,null,extra.packM2);
   const variants=Array.isArray(p.variants)?p.variants:[];
   const sale=variants.some(v=>number(v.compare_at_price)>number(v.price)&&number(v.price)>0);
   products.push({name,url,category,...extra,...price,sourcePage:site.root+"products.json",
