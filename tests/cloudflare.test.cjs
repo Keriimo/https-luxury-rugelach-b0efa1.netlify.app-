@@ -243,3 +243,45 @@ test("Long listing and sitemap can process more than 200 products without trunca
  assert.equal(parsed.urls.length,340);
  assert.equal(parsed.jobs.length,0);
 });
+
+test("LaminatDEPOT category Komplett-Set price is recognized instead of old strikethrough price",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<article><a href="/alle-produkte/laminat-modern-grau-100029402">'+
+  'Laminat Modern Grau Set inklusive Dämmung und Fußleiste 7 mm Stärke | NK 31 | AC3 '+
+  'statt 17,73 €/m² Komplett-Set 12,99 €/m² Du sparst 4,74 €/m²'+
+  '</a></article>';
+ const listed=x.list(html,site,site.root+"laminat");
+ assert.equal(listed.products.length,1);
+ assert.equal(listed.products[0].price,12.99);
+ assert.equal(listed.products[0].oldPrice,17.73);
+ assert.equal(listed.products[0].unit,"m²");
+});
+test("Product card price in following HTML sibling is attributed only to its product",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<div class="product-card"><a href="/alle-produkte/laminat-eiche-100011111">'+
+  'Laminat Eiche Natur Set 8 mm</a><span>statt 14,73 €/m²</span>'+
+  '<span>Komplett-Set 9,99 €/m²</span></div>'+
+  '<div class="product-card"><a href="/alle-produkte/laminat-grau-100022222">'+
+  'Laminat Grau Set 7 mm</a><span>Komplett-Set 12,99 €/m²</span></div>';
+ const result=x.list(html,site,site.root+"laminat");
+ assert.equal(result.products.length,2);
+ const byName=new Map(result.products.map(p=>[p.name,p]));
+ assert.equal(byName.get("Laminat Eiche Natur Set 8 mm").price,9.99);
+ assert.equal(byName.get("Laminat Grau Set 7 mm").price,12.99);
+});
+test("Unpriced product card never borrows the next product's price",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<a href="/alle-produkte/laminat-a-100010001">Laminat Natur Eiche 8 mm</a>'+
+  '<a href="/alle-produkte/laminat-b-100010002">Laminat Anderer Boden 7 mm</a>'+
+  '<span>Komplett-Set 16,99 €/m²</span>';
+ const result=x.list(html,site,site.root+"laminat");
+ assert.equal(result.products.length,2);
+ assert.equal(result.products[0].price,null);
+ assert.equal(result.products[1].price,16.99);
+});
+test("Generic shops do not get an unconditional Shopify feed request",async()=>{
+ const r=await api.post({request:apiRequest("https://boden-testshop.de/","discover")});
+ const data=await r.json();
+ assert.equal(r.status,200);
+ assert.equal(data.jobs.some(j=>j.type==="shopify"),false);
+});
