@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.9.0-free";
+const VERSION = "5.10.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -90,7 +90,7 @@ const strip=html=>clean(decode(String(html||"").replace(/<script\b[^>]*>[\s\S]*?
   .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi," ")
   .replace(/<[^>]*>/g," ")));
 const FLOOR_TYPES=["Laminat","Vinyl","Parkett"];
-const ACCESSORY_WORDS=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|trittschall|unterlage|unterboden|unterlagsmatte|wärmedämmung|waermedaemmung|isoliermatte|verlegezubehör|verlegezubehoer|sockelleiste|fußleiste|fussleiste|abschlussprofil|übergangsprofil|uebergangsprofil|montagekleber|verlegekleber|kleber|reiniger|pflegeprodukt|reparaturset|montageset|fugenmasse|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i;
+const ACCESSORY_WORDS=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|dämmplatte|daemmplatte|dämmvlies|daemmvlies|trittschall|unterlage|unterboden|unterlagsmatte|wärmedämmung|waermedaemmung|isoliermatte|verlegezubehör|verlegezubehoer|sockelleiste|fußleiste|fussleiste|abschlussprofil|übergangsprofil|uebergangsprofil|montagekleber|verlegekleber|kleber|reiniger|pflegeprodukt|reparaturset|montageset|fugenmasse|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag|falt[-\s]?(?:platte|platten|matte|matten|unterlage)|dampfbrems(?:folie|e)|dampfsperr(?:folie|e)|feuchtesperre|akustikmatte|schaumunterlage|selit(?:ac|bloc|pro|flex|eco|style|stop)\b|sound[-\s]?eliminator\b|acoustic[-\s]?board\b)/i
 const FLOOR_FIRST=/^(?:(?:klick|klebe)[-\s]?)?(?:laminat(?:boden)?|vinyl(?:boden)?|rigid[-\s]?vinyl|parkett|designboden|spc[-\s]?boden|lvt[-\s]?boden)\b/i;
 function isNonFloorTitle(text){
  const t=clean(text).toLowerCase();
