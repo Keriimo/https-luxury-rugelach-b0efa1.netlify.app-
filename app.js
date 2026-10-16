@@ -341,6 +341,120 @@ function comparePairs(){
  compareCache={signature,pairs:final};
  return final;
 }
+
+const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett","Zubehör"];
+function productLink(p,label){
+ const a=node("a",null,label||"Produkt öffnen ↗");
+ a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
+ return a;
+}
+function renderOverview(items){
+ const section=el("bestPriceGrid");section.replaceChildren();
+ const prices=items.filter(validPrice);
+ const count=prices.length;
+ el("priceCoverage").textContent=count+" Produkte mit erfasstem €/m²-Preis";
+ el("priceCoverage").classList.toggle("warn",!count);
+ for(const category of PRICE_CATEGORIES){
+  const options=items.filter(p=>p.category===category&&priceAvailable(p)&&
+   (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+  options.sort((a,b)=>a.price-b.price);
+  const product=options[0];
+  const card=node("div","best-card"+(!product?" empty-price":""));
+  card.append(node("small","muted",category==="Zubehör"?"Zubehör · Stückpreis":"Bester erfasster "+category+"-Preis"));
+  if(product){
+   card.append(node("strong","",showEuro(product.price)+" /"+product.unit));
+   card.append(node("div","name",product.name));
+   card.append(node("small","muted",product.shopName));
+   card.append(productLink(product,"Angebot ansehen ↗"));
+  }else{
+   card.append(node("strong",null,"Noch kein Preis"));
+   card.append(node("div","name","Für diese Kategorie wurde noch kein passender Preis erfasst."));
+  }
+  section.append(card);
+ }
+ const wrap=el("shopCoverage");wrap.replaceChildren();
+ const table=node("table","mini-table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
+ tableHeader(tr,["Shop","Produkte erfasst","Mit €/m²","Günstigster erfasster Boden","Scanstatus"]);
+ thead.append(tr);
+ for(const shop of state.shops.filter(x=>x.active)){
+  const all=shop.items||[],floor=all.filter(p=>p.category!=="Zubehör"),verified=floor.filter(validPrice);
+  const best=verified.length?verified.reduce((a,b)=>a.price<b.price?a:b):null;
+  const row=node("tr");
+  const name=node("td");name.append(node("strong",null,shop.name));
+  const dataQuality=node("td",null,verified.length+" von "+floor.length+" Bodenartikeln");
+  const scan=shop.scan;
+  let status="Noch nicht geprüft";
+  if(scan){
+   const pending=(scan.jobs?.length||0)+(scan.urls?.length||0);
+   status=scan.blocked?"Zugriff eingeschränkt":pending?pending+" Aufgaben offen":
+    scan.failures?"Teilweise geprüft":"Prüfung beendet";
+  }
+  row.append(name,node("td",null,all.length),dataQuality,
+   node("td","price",best?showEuro(best.price)+" /m²":"Preis fehlt"),
+   node("td",null,status));
+  tbody.append(row);
+ }
+ if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=5;tr.append(cell);tbody.append(tr);}
+ table.append(thead,tbody);wrap.append(table);
+}
+function renderQuickCategories(){
+ const box=el("quickCategories");box.replaceChildren();
+ const choices=[["","Alle Bodenbeläge"],...PRICE_CATEGORIES.map(cat=>[cat,cat])];
+ for(const [value,label]of choices){
+  const button=btn(label,()=>{
+   state.category=value;
+   el("category").value=value;
+   render();
+  },state.category===value?"active":"secondary");
+  button.classList.toggle("active",state.category===value);
+  box.append(button);
+ }
+}
+function compareSelectionChanged(){
+ const chosen=state.manualCompare.length;
+ setStatus(chosen<2?chosen+" von 2 Produkten für den technischen Vergleich ausgewählt.":
+  "Zwei Produkte ausgewählt. Technische Eigenschaften und vorhandene Preise werden nebeneinander angezeigt.","ok");
+ if(chosen===2)state.tab="comparison";
+ render();
+}
+function toggleManualProduct(p){
+ const key=p.shopId+"|"+p.url;
+ const idx=state.manualCompare.findIndex(x=>x.shopId+"|"+x.url===key);
+ if(idx>=0)state.manualCompare.splice(idx,1);
+ else{
+  if(state.manualCompare.length>=2)state.manualCompare.shift();
+  state.manualCompare.push({...p});
+ }
+ compareSelectionChanged();
+}
+function renderManualComparison(){
+ const label=el("manualSelectionLabel"),area=el("manualComparisonHolder");
+ const count=state.manualCompare.length;
+ label.textContent=count===0?"Wähle in der Produktliste zwei Artikel über „Vergleichen“ aus.":
+  count===1?"1 von 2 Artikeln ausgewählt: "+state.manualCompare[0].name:
+  "2 Produkte zum direkten Merkmalsvergleich ausgewählt";
+ area.replaceChildren();
+ if(count<2){
+  area.append(node("p","empty","Auch ohne €/m²-Preis möglich. Gehe zur Produktliste und wähle zwei Produkte aus."));
+  return;
+ }
+ const a=state.manualCompare[0],b=state.manualCompare[1];
+ const unitCheck=hasComparablePrice(a,b),sameCategory=a.category===b.category;
+ const card=node("div","detail-box");
+ const title=node("h3",null,"Manuell ausgewählter Produktvergleich");
+ card.append(title);
+ const info= !sameCategory?"Unterschiedliche Bodenarten – kein gleichwertiger Vergleich.":
+  !unitCheck?"Einer oder beide Preise fehlen beziehungsweise besitzen unterschiedliche Einheiten. Kein Preisvorteil berechnet.":
+  "Beide Preise sind pro "+a.unit+" erfasst; technische Unterschiede bitte einzeln prüfen.";
+ card.append(node("p","notice",info));
+ comparisonDetail({a,b},card);
+ if(unitCheck){
+  const difference=Math.abs(a.price-b.price);
+  const cheaper=a.price===b.price?"Gleicher Preis":a.price<b.price?a.shopName+" günstiger":b.shopName+" günstiger";
+  card.append(node("strong","green",cheaper+": "+showEuro(difference)+" je "+a.unit));
+ }
+ area.append(card);
+}
 function renderMetrics(items,pairs){
  const top=el("metrics");top.replaceChildren();
  const m=[["Gefundene Produkte",items.length],["Mit €/m²-Preis",items.filter(validPrice).length],
