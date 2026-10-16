@@ -1,4 +1,4 @@
-# MarktRadar 5.0 – kostenlos bei Cloudflare Pages
+# MarktRadar 5.1.0 – kostenlos bei Cloudflare Pages
 
 **Ohne Downloads oder Installationen auf dem Firmenlaptop.** Die Veröffentlichung läuft vollständig über den Browser. Keine kostenpflichtigen APIs und keine Kreditkarte erforderlich, wenn Cloudflare die Free-Registrierung ohne Zahlungsdaten ermöglicht.
 
@@ -11,7 +11,7 @@
 5. **Build command**: `sh build-cloudflare.sh`.
 6. **Build output directory / Publish directory**: `dist`.
 7. Speichern und veröffentlichen. Cloudflare erzeugt eine neue Adresse unter `*.pages.dev`.
-8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.0-free"` erscheinen.
+8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.1.0-free"` erscheinen.
 9. MarktRadar öffnen und den Button **Verbindung prüfen** klicken. Anschließend mit nur einem Shop einen kleinen Scan starten.
 
 **Wichtig:** Die alte Netlify-Adresse wird durch die Veröffentlichung bei Cloudflare NICHT automatisch aktualisiert. Kollegen benötigen später den neuen Cloudflare-Link.
@@ -56,3 +56,12 @@ Der Quellcode liegt in einem **öffentlichen GitHub-Repository**. Bitte hier kei
 2. Die neue `*.pages.dev/api/catalog`-Adresse liefert JSON mit `ok:true`?
 3. Verbindungstest im Dashboard verwenden.
 4. Falls 403/429/timeout: öffentlich zugängliche Shopseiten sind möglicherweise technisch eingeschränkt. Das ist kein Hinweis auf fehlende Produkte.
+
+## Version 5.1.0 – Qualität und Betrieb
+
+- Die Build-Prüfung führt JavaScript-Syntaxchecks und Cloudflare-API-Regressionstests aus. Bei Fehlern bricht das Deployment ab, statt eine kaputte Version zu veröffentlichen.
+- Zum Veröffentlichen nach GitHub-Änderungen: Cloudflare-Git-Integration oder optional GitHub Actions → `MarktRadar – Cloudflare veröffentlichen`; hierfür muss `CLOUDFLARE_DEPLOY_HOOK` in GitHub Actions als Repository-Secret hinterlegt sein. Hook-Adresse niemals im Chat oder öffentlichen Code posten.
+- Unter Cloudflare → Deployments muss die aktuelle GitHub-Version mit Status **Success** erscheinen. Ohne erfolgreiche Veröffentlichung ist der Code nur im Repository geändert.
+- Der Scanner zeigt die Datenlage ehrlich: öffentlich nicht auslesbare oder technisch gesperrte Shops bleiben unvollständig. Das Tool garantiert keine Vollständigkeit bei beliebigen Shops.
+- Kein automatisches Überschreiten von Gratis-Tarifen wird bewusst eingerichtet. Der Client limitiert den eigenen Browser auf 180 API-Aufrufe pro UTC-Tag; das **Cloudflare-Gesamtkontingent** gilt zusätzlich für alle Nutzer gemeinsam.
+- Das Produktmatching ist regelbasiert und nur ein Vorschlag, keine KI-gestützte bestätigte Gleichwertigkeit.
