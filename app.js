@@ -2,7 +2,7 @@
 (function(){
 const KEY="marktradar:catalog:v3";
 const API_PATH="/api/catalog";
-const FREE_DAILY_MAX=180;
+const FREE_DAILY_MAX=1000;
 let dbConnection=null,revision=0,pendingDatabaseWrite=null,writingDatabase=false;
 function openDatabase(){
  if(!("indexedDB" in window))return Promise.resolve(null);
@@ -54,7 +54,7 @@ const DEFAULT=[
 let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,manualCompare:[]};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
- subtitle:"Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²",
+ subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · Preise pro m²",
  accent:"#e5233f",hero:"#15233a"};
 let appearance={...STANDARD_STYLE};
 const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
@@ -220,7 +220,8 @@ function renderShops(){
   const name=node("div","shop-data");
   name.append(node("strong",null,shop.name));
   name.append(node("small","muted break",shop.url));
-  const count=shop.items.length,priced=shop.items.filter(validPrice).length;
+  const floorItems=shop.items.filter(isFloor);
+  const count=floorItems.length,priced=floorItems.filter(validPrice).length;
   const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
   name.append(node("small","muted",count+" Artikel · "+priced+" €/m²-Preise "+(shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
   if(shop.scan?.blocked)name.append(node("small","stale","Zugriff eingeschränkt · später erneut versuchen"));
@@ -239,9 +240,10 @@ function renderShops(){
  el("deepScanButton").disabled=state.busy||!selected.length;
  el("resetButton").disabled=state.busy||!selected.length;
 }
-function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>s.items.map(p=>({...p,shopId:s.id,shopName:s.name})))}
-function validPrice(p){return Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
-function priceAvailable(p){return Number.isFinite(p.price)&&p.price>0&&["m²","Stück"].includes(p.unit)}
+function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>
+ s.items.filter(isFloor).map(p=>({...p,shopId:s.id,shopName:s.name})))} 
+function validPrice(p){return isFloor(p)&&Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
+function priceAvailable(p){return validPrice(p)}
 function filteredItems(onlyOffers=false){
  const q=state.query.toLowerCase();
  let list=allItems().filter(p=>
@@ -258,7 +260,8 @@ function hasComparablePrice(a,b){
  return priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
 }
 
-const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett","Zubehör"];
+const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
+const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
 function productLink(p,label){
  const a=node("a",null,label||"Produkt öffnen ↗");
  a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
@@ -271,12 +274,11 @@ function renderOverview(items){
  el("priceCoverage").textContent=count+" Produkte mit erfasstem €/m²-Preis";
  el("priceCoverage").classList.toggle("warn",!count);
  for(const category of PRICE_CATEGORIES){
-  const options=items.filter(p=>p.category===category&&priceAvailable(p)&&
-   (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+  const options=items.filter(p=>p.category===category&&validPrice(p));
   options.sort((a,b)=>a.price-b.price);
   const product=options[0];
   const card=node("div","best-card"+(!product?" empty-price":""));
-  card.append(node("small","muted",category==="Zubehör"?"Zubehör · Stückpreis":"Bester erfasster "+category+"-Preis"));
+  card.append(node("small","muted","Bester erfasster "+(category==="Vinyl"?"Vinyl / Rigid-Vinyl":category)+"-Preis"));
   if(product){
    card.append(node("strong","",showEuro(product.price)+" /"+product.unit));
    card.append(node("div","name",product.name));
@@ -293,7 +295,7 @@ function renderOverview(items){
  tableHeader(tr,["Shop","Produkte erfasst","Mit €/m²","Günstigster erfasster Boden","Scanstatus"]);
  thead.append(tr);
  for(const shop of state.shops.filter(x=>x.active)){
-  const all=shop.items||[],floor=all.filter(p=>p.category!=="Zubehör"),verified=floor.filter(validPrice);
+  const floor=(shop.items||[]).filter(isFloor),all=floor,verified=floor.filter(validPrice);
   const best=verified.length?verified.reduce((a,b)=>a.price<b.price?a:b):null;
   const row=node("tr");
   const name=node("td");name.append(node("strong",null,shop.name));
@@ -315,7 +317,7 @@ function renderOverview(items){
 }
 function renderQuickCategories(){
  const box=el("quickCategories");box.replaceChildren();
- const choices=[["","Alle Bodenbeläge"],...PRICE_CATEGORIES.map(cat=>[cat,cat])];
+ const choices=[["","Alle Bodenbeläge"],...PRICE_CATEGORIES.map(cat=>[cat,cat==="Vinyl"?"Vinyl / Rigid-Vinyl":cat])];
  for(const [value,label]of choices){
   const button=btn(label,()=>{
    state.category=value;
@@ -388,17 +390,15 @@ function renderPriceDuel(){
  const area=el("priceDuelHolder");area.replaceChildren();
  const shops=state.shops.filter(s=>s.active);
  if(!shops.length){area.append(node("div","empty","Bitte zuerst Shops auswählen."));return;}
- const categories=state.category?[state.category]:
-  ["Laminat","Vinyl","Parkett","Bioboden & Kork","Teppich","PVC","Zubehör"];
+ const categories=state.category?[state.category]:PRICE_CATEGORIES;
  const table=node("table","mini-table"),head=node("thead"),line=node("tr"),body=node("tbody");
  const cols=["Bodenart",...shops.map(shop=>shop.name)];
  tableHeader(line,cols);head.append(line);
  for(const category of categories){
   const row=node("tr");
-  row.append(node("td",null,category));
+  row.append(node("td",null,category==="Vinyl"?"Vinyl / Rigid-Vinyl":category));
   const results=shops.map(shop=>{
-   const matches=shop.items.filter(p=>p.category===category&&priceAvailable(p)&&
-      (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+   const matches=shop.items.filter(p=>p.category===category&&validPrice(p));
    const ranked=matches.sort((a,b)=>a.price-b.price);
    return {count:ranked.length,best:ranked[0]};
   });
@@ -529,7 +529,7 @@ function availableRequest(){
  }catch(e){return false;}
 }
 async function api(site,action,extra){
- if(!availableRequest())throw Error("Kostenlose Sicherheitsgrenze von 180 Scan-Anfragen pro Tag erreicht. Morgen erneut versuchen.");
+ if(!availableRequest())throw Error("Kostenlose Sicherheitsgrenze von 1.000 Scan-Anfragen pro Browser und Tag erreicht. Morgen erneut versuchen.");
  const ctl=new AbortController(),tid=setTimeout(()=>ctl.abort(),12000);
  try{
   const res=await fetch(API_PATH,{method:"POST",
@@ -544,7 +544,7 @@ async function api(site,action,extra){
 }
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function mergeItem(map,p){
- if(!p||!p.url||!p.name)return;
+ if(!p||!p.url||!p.name||!isFloor(p))return;
  const old=map.get(p.url);
  if(!old){map.set(p.url,p.price!=null?{...p,priceCheckedAt:p.checkedAt||new Date().toISOString()}:p);return;}
  const next=Object.assign({},old,p);
@@ -557,10 +557,10 @@ function mergeItem(map,p){
  map.set(p.url,next);
 }
 function scanStats(shop,scan){
- shop.items=[...scan.items.values()].slice(0,12000);
+ shop.items=[...scan.items.values()].filter(isFloor).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:3,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:4,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
@@ -580,12 +580,12 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==3)saved=null;
+ if(saved&&saved.engineVersion!==4)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
    const jobs=found.jobs||[];
-   saved={engineVersion:3,
+   saved={engineVersion:4,
     jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list"),{type:"shopify",page:1}],
     urls:found.urls||[],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
@@ -603,11 +603,11 @@ async function scanShop(shop,restart,quick=false){
   ...saved,
   visitedJobs:new Set(saved.visitedJobs||[]),
   visitedUrls:new Set(saved.visitedUrls||[]),
-  items:new Map(previous.filter(p=>p?.url).map(p=>[p.url,p])),
+  items:new Map(previous.filter(p=>p?.url&&isFloor(p)).map(p=>[p.url,p])),
   errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
   blocked:false
  };
- const maxJobs=quick?5:8,maxDetails=quick?8:24,maxMillis=quick?25000:75000;
+ const maxJobs=quick?6:14,maxDetails=quick?12:30,maxMillis=quick?30000:85000;
  const start=Date.now();
  let jobsDone=0,detailsDone=0,processed=0;
  const progress=()=>{
@@ -649,8 +649,8 @@ async function scanShop(shop,restart,quick=false){
        if(product.url&&!scan.visitedUrls.has(product.url)&&
         !scan.urls.includes(product.url))scan.urls.push(product.url);
       }
-      if(data.hasMore&&job.page<30)scan.jobs.push({type:"shopify",page:job.page+1});
-      if(data.hasMore&&job.page>=30)scan.truncated=true;
+      if(data.hasMore&&job.page<100)scan.jobs.push({type:"shopify",page:job.page+1});
+      if(data.hasMore&&job.page>=100)scan.truncated=true;
      }else{
       for(const next of data.jobs||[]){
        const token=next.type+":"+next.url+":"+(next.offset||next.page||0);
