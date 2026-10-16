@@ -203,8 +203,15 @@ function save(){
  const raw=JSON.stringify(saved);
  pendingDatabaseWrite=raw;void flushDatabase();
  try{
+  // IndexedDB holds the complete data. The fallback must never silently
+  // truncate the catalog at 500 items while pretending that all were saved.
   const lite=raw.length<1600000?saved:{
-   shops:state.shops.map(shop=>({...shop,items:shop.items.filter(isSupported).slice(0,500),scan:null})),
+   shops:state.shops.map(shop=>({...shop,items:shop.items.filter(isSupported).map(p=>({
+    name:p.name,url:p.url,category:p.category,price:p.price,unit:p.unit,
+    priceSource:p.priceSource,manualPrice:p.manualPrice,provisional:p.provisional,
+    brand:p.brand,sku:p.sku,thickness:p.thickness,wear:p.wear,nk:p.nk,ac:p.ac,
+    promotion:p.promotion,checkedAt:p.checkedAt,priceCheckedAt:p.priceCheckedAt
+   })),scan:null})),
    tab:state.tab
   };
   localStorage.setItem(KEY,JSON.stringify(lite));
@@ -797,7 +804,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:7,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:8,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -819,7 +826,7 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==7)saved=null;
+ if(saved&&saved.engineVersion!==8)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
