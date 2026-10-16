@@ -167,42 +167,45 @@ function meterPrice(text,structured,pack){
  return {price,unit,priceSource,oldPrice,discountPct,promotion};
 }
 function productPagePrice(text,structured,pack){
- // Only product-local content should enter this function.
- // "Komplettpreis" appears on detail pages and "Komplett-Set" on category tiles.
+ // Laminat DEPOT presents the actual floor price separately from underlay,
+ // skirting, old UVP prices and the total package price.
  const t=clean(text).slice(0,70000);
- const anchors=[...t.matchAll(/\b(?:Komplettpreis|Komplett-Set)\b/gi)].slice(0,30);
- for(const found of anchors){
-  const chunk=t.slice(found.index,found.index+175).split(
-   /(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
-  const candidates=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi)];
-  if(!candidates.length)continue;
-  // If "statt 20,00 €/m²" and the new € / m² price both appear after
-  // the label, the final *explicit* price is the current offer.
-  const candidate=candidates[candidates.length-1];
-  const current=number(candidate[1]);
-  if(!current||current>=500)continue;
-  const oldPart=t.slice(Math.max(0,found.index-85),found.index+candidate.index);
-  const oldMatch=oldPart.match(/\bstatt\s*(\d{1,4}(?:[,.]\d{2}))/i);
-  const oldValue=oldMatch?number(oldMatch[1]):null;
-  const oldPrice=oldValue&&oldValue>current?oldValue:null;
-  return {...meterPrice("",null,null),price:current,unit:"m²",
-   priceSource:/komplett-set/i.test(found[0])?
-     "Komplett-Set €/m² aus Katalog":"Komplettpreis €/m² auf Produktseite",
-   oldPrice,discountPct:oldPrice?Math.round((1-current/oldPrice)*100):null,
-   promotion:oldPrice?"Ausgewiesener Preisnachlass":""};
+ const amount=/([0-9]{1,4}(?:[,.][0-9]{2}))\s*€\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi;
+ function currentWithin(section){
+  const found=[...section.matchAll(amount)].filter(m=>{
+   const before=section.slice(Math.max(0,m.index-48),m.index);
+   return !/(?:statt|uvp|alter\s+preis|du\s+sparst|ersparnis|ab)\s*:?\s*$/i.test(before);
+  });
+  if(!found.length)return null;
+  return number(found[found.length-1][1]);
  }
- // Explicit "Boden" price: accept only the tightly delimited product-specific
- // section, not insulation, skirting or the package price.
- for(const found of [...t.matchAll(/\bBoden\s+(.{0,110})/gi)].slice(0,8)){
-  const chunk=found[1].split(/(?:inkl\.|Komplettpreis|Komplett-Set|Fußleiste|Dämmung)/i)[0];
-  const candidates=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi)];
-  if(candidates.length){
-   const current=number(candidates[candidates.length-1][1]);
-   if(current&&current<500)return {...meterPrice("",null,null),price:current,
-    unit:"m²",priceSource:"Bodenpreis €/m² auf Produktseite"};
-  }
+ // The bounded Boden block ends before the free accessories begin.
+ for(const m of [...t.matchAll(/\bBoden\b/gi)].slice(0,20)){
+  const chunk=t.slice(m.index+ m[0].length,m.index+ m[0].length+180)
+    .split(/(?:\+\s*inkl\.?|Dämmung|Daemmung|Fußleiste|Fussleiste|Sockelleiste|Komplettpreis|Paketpreis)/i)[0];
+  const price=currentWithin(chunk);
+  if(price&&price<500)return {...meterPrice("",null,null),price,unit:"m²",
+   priceSource:"Bodenpreis €/m² auf Produktseite"};
  }
- return meterPrice(t,structured,pack);
+ // If a Boden block is absent, take only the CURRENT Komplettpreis.
+ for(const m of [...t.matchAll(/\b(?:Komplettpreis|Komplett-Set)\b/gi)].slice(0,20)){
+  const chunk=t.slice(m.index+m[0].length,m.index+m[0].length+180)
+   .split(/(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
+  const price=currentWithin(chunk);
+  if(price&&price<500)return {...meterPrice("",null,null),price,unit:"m²",
+   priceSource:/komplett-set/i.test(m[0])?"Komplett-Set €/m² aus Katalog":"Komplettpreis €/m² auf Produktseite"};
+ }
+ // Only compute a unit price from an explicit, local package price + area pair.
+ const pairs=[...t.matchAll(/Paketpreis\s*:?\s*([0-9]{1,5}(?:[,.][0-9]{2}))\s*€\s*(?:\||;|,)\s*Inhalt\s*:?\s*([0-9]{1,3}(?:[,.][0-9]{1,3}))\s*(?:m²|m2|qm)/gi)];
+ if(pairs.length===1){
+  const total=number(pairs[0][1]),area=number(pairs[0][2]);
+  if(total&&area&&area>=0.1&&area<=15)
+   return {...meterPrice("",null,null),price:Math.round(total/area*100)/100,unit:"m²",
+    priceSource:"Paketpreis / Paketfläche (berechnet)"};
+ }
+ // Reject accessory-only price patterns (the free underlay must never win).
+ const cleaned=t.replace(/(?:\+\s*inkl\.?\s*)?(?:Basic\s*)?(?:Trittschall)?(?:Dämmung|Daemmung|Fußleiste|Fussleiste|Sockelleiste)\s*(?:UVP|statt)?\s*[0-9,.€\s]*(?:\/\s*(?:m²|m2|qm|m))?/gi," ");
+ return meterPrice(cleaned,structured,pack);
 }
 
 function productJson(html){
