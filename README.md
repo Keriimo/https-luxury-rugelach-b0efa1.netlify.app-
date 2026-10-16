@@ -1,6 +1,19 @@
-# MarktRadar 5.1.0 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.2 — Cloudflare Free (kein kostenpflichtiges Abo)
 
-## Stand 5.1.0
+## MarktRadar 5.2 – Neues Vertriebs-Dashboard
+
+Die Benutzeroberfläche kann jetzt unmittelbar im Browser angepasst werden: oben rechts **Darstellung anpassen** auswählen und Marke, Überschrift, Untertitel sowie Rot-/Dunkelblau-Farben verändern. Die Darstellung wird **nur auf diesem Gerät** gespeichert und beeinflusst den Scanner nicht. Es ist kein offizielles Unternehmensdesign oder eine offizielle LaminatDEPOT-Anwendung.
+
+**Preisradar:** Die vier Übersichts-Karten zeigen die günstigsten **tatsächlich erfassten** Preise für Laminat, Vinyl, Parkett und Stückpreise für Zubehör. Darunter sieht man die Abdeckung der €/m²-Daten je ausgewähltem Shop. Ohne Preis wird „Noch kein Preis“ statt einer Zahl angezeigt.
+
+**Vergleich:** Automatische technische Alternativen erfordern mindestens zwei übereinstimmende Merkmale. Auch ohne €/m²-Preis werden Vorschläge angezeigt, aber **kein Preisvorteil berechnet**. In der Produktliste können zwei Produkte über **Vergleichen** manuell ausgewählt werden, unabhängig davon, ob Preise vorhanden sind. Solche Gegenüberstellungen sind keine Gleichwertigkeitsbescheinigung.
+
+**Geschwindigkeit:** **Schnellscan** bearbeitet pro Shop eine kurze Etappe und zeigt bereits gespeicherte Ergebnisse. **Scan vertiefen / fortsetzen** holt in weiteren Etappen zusätzliche Daten. Bei kostenlosen Kontingenten und Shop-Sperren kann die Erfassung weiterhin unvollständig bleiben.
+
+Der Cloudflare-Scanner und die Worker-Routen wurden bei diesem Frontend-Upgrade unverändert übernommen. Die Kataloge liegen weiterhin unter `marktradar:catalog:v3` im Browserspeicher. Die automatische Release-Prüfung enthält `tests/ui.test.cjs` für Browser-Oberfläche, Katalogerhalt und Vergleich ohne fehlende Preise.
+
+
+## Stand 5.2
 
 Der Cloudflare-Scanner nutzt öffentliche Shopify-Kataloge, Produktseiten und Sitemaps (auch Hinweise aus `robots.txt`). Scans laufen in kleinen Etappen und können fortgesetzt werden. Shop-Sperren, Gratislimits, veraltete Preise und fehlende Daten werden sichtbar gekennzeichnet.
 
