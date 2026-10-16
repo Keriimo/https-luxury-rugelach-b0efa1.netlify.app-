@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MarktRadar · Laminat DEPOT – Wettbewerbsanalyse</title>
+<meta name="description" content="Wettbewerbsanalysen für Laminat, Vinyl, Parkett, Bioboden und Zubehör. Preisvergleiche und technische Unterschiede.">
+<style>
+:root{--ink:#182338;--accent:#ed2e3c;--muted:#738097;--surface:#fff;--border:#e1e6ef;--base:#f3f5f9;--ok:#0d8c61}
+*{box-sizing:border-box}
+body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--base);color:var(--ink)}
+.layout{max-width:1320px;margin:0 auto;padding:18px}
+.hero{background:#192437;border-radius:16px;padding:28px 30px;color:#fff}
+.kicker{letter-spacing:2px;font-size:12px;color:#ff7481;font-weight:900}
+h1{font-size:30px;margin:8px 0 4px;letter-spacing:-.7px}
+.hero p{font-size:13px;color:#cad3e0;margin:2px 0}
+h2{font-size:18px;margin:0 0 10px}
+h3{font-size:15px;margin:0 0 8px}
+.panel{border:1px solid var(--border);background:var(--surface);border-radius:14px;padding:20px;margin-top:16px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+small{font-size:11px;display:block}
+.break{overflow-wrap:anywhere}
+strong{font-weight:750}
+button,input,select{font:inherit;border:1px solid #d5dce8;border-radius:9px;padding:10px 12px}
+button{font-weight:700;cursor:pointer;background:white;color:var(--ink);white-space:nowrap}
+button.primary{background:var(--accent);color:white;border-color:var(--accent)}
+button.ghost{border:0;background:transparent;color:#b23b47}
+button:disabled{opacity:.55;cursor:default}
+button.active{background:var(--accent);border-color:var(--accent);color:white}
+input,select{color:var(--ink);background:#fff;min-width:0;max-width:100%}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
+.shop-entry{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid #edf0f4}
+.shop-entry:last-child{border-bottom:0}
+.shop-data{flex:1;min-width:145px;display:flex;flex-direction:column;gap:3px}
+.inputs{display:grid;grid-template-columns:1fr 1.5fr auto;gap:10px;align-items:end;margin-top:16px}
+.inputs input{width:100%}
+.actions{display:flex;gap:8px;flex-wrap:wrap}
+.notice{background:#f0f3f7;padding:12px;border-radius:10px;font-size:12px;color:#374760;margin:12px 0 0}
+#message[data-kind=warning]{background:#fff4df;color:#775115}
+#message[data-kind=ok]{background:#e5f6ed;color:#155a38}
+#progress{background:#eaf0fc;color:#244b7b}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
+.metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white}
+.metric-val{font-size:31px;display:block;letter-spacing:-.6px;margin-top:4px}
+.filters{display:grid;grid-template-columns:minmax(220px,2.4fr) repeat(4,minmax(110px,1fr));gap:10px}
+.filters input,.filters select{width:100%}
+.tabs{display:flex;gap:8px;flex-wrap:wrap}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:950px}
+th,td{padding:11px;text-align:left;border-bottom:1px solid #e8edf3;vertical-align:top}
+th{font-size:10px;letter-spacing:.6px;text-transform:uppercase;color:#75839a}
+td{font-size:12px}
+td small{margin-top:4px}
+.price{font-weight:750}
+a{color:#c51f32;text-decoration:underline}
+.pair,.offer{padding:16px 4px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.pair-body{display:flex;flex:1;flex-direction:column;gap:6px;min-width:220px}
+.green{color:var(--ok)}
+.stale{color:#b36a16}
+.detail-box{width:100%;border-radius:10px;padding:10px;background:#f7f9fc}
+.detail-box table{min-width:560px}
+.detail-box[hidden],[hidden]{display:none!important}
+.empty{color:var(--muted);padding:22px;text-align:center;background:#f8fafc;border-radius:10px}
+.offer .price{display:flex;flex-direction:column}
+.foot{font-size:11px;color:var(--muted);margin:16px 0;padding:5px}
+.badge{font-size:11px;color:#80e1aa;background:#294532;border-radius:20px;padding:5px 9px}
+@media(max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters input{grid-column:span 2}.inputs{grid-template-columns:1fr 1fr}.inputs .add{grid-column:span 2}.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.layout{padding:8px}.hero{padding:20px}h1{font-size:24px}.inputs,.filters{grid-template-columns:1fr}.inputs .add,.filters input{grid-column:span 1}.shop-entry{flex-wrap:wrap}.shop-entry .shop-data{min-width:calc(100% - 40px)}.panel{padding:14px}.metric-val{font-size:25px}}
+</style>
+<script src="/app.js" defer></script>
+</head>
+<body>
+<main class="layout">
+<header class="hero">
+<div class="row between">
+<div class="kicker">LAMINAT DEPOT · MARKTRADAR</div>
+<span class="badge">Version 5.1.0 · KOSTENLOS</span>
+</div>
+<h1>Wettbewerbsanalyse</h1>
+<p>Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²</p>
+</header>
+<section class="panel" aria-label="Shopverwaltung">
+<div class="row between">
+<div><h2>Wettbewerber verwalten</h2><small class="muted">Shop-Links hinzufügen, bearbeiten und für den Vergleich auswählen</small></div>
+<small id="selectionCount" class="muted">2 Shops ausgewählt</small>
+</div>
+<div id="shopList"></div>
+<div class="inputs">
+<div><label for="newName">Name des Shops</label><input id="newName" placeholder="z. B. Bodenfachmarkt" maxlength="70"></div>
+<div><label for="newUrl">Adresse des Online-Shops</label><input id="newUrl" placeholder="https://www.beispielshop.de"></div>
+<button id="addButton" class="primary add">+ Shop hinzufügen</button>
+</div>
+<div class="actions" style="margin-top:16px">
+<button id="scanButton" class="primary">Ausgewählte Shops prüfen / fortsetzen</button>
+<button id="resetButton">Scan neu starten</button>
+<button id="exportButton">Daten als JSON sichern</button>
+<button id="copyButton" type="button">Gefilterte Tabelle kopieren</button>
+<button id="diagnoseButton" type="button">Verbindung prüfen</button>
+</div>
+<div id="progress" class="notice" hidden aria-live="polite"></div>
+<div id="message" class="notice" aria-live="polite">Bereit. Aktiviere die Shops, die du vergleichen möchtest, und starte die Katalogsuche.</div>
+</section>
+<div id="metrics" class="metrics"></div>
+<section class="panel">
+<h2>Produkte suchen und filtern</h2>
+<div class="filters">
+<input id="productSearch" placeholder="Produktname, Artikelnummer oder Marke suchen" aria-label="Produkt suchen">
+<select id="category" aria-label="Kategorie">
+<option value="">Alle Kategorien</option>
+<option>Laminat</option><option>Vinyl</option><option>Parkett</option>
+<option>Bioboden &amp; Kork</option><option>Teppich</option><option>PVC</option>
+<option>Sonstige Bodenbeläge</option><option>Zubehör</option>
+</select>
+<select id="promotions" aria-label="Aktion">
+<option value="">Alle Preise</option>
+<option value="yes">Werbepreise / Aktionen</option>
+<option value="no">Ohne erkannte Aktion</option>
+</select>
+<select id="limit" aria-label="Anzahl Produkte">
+<option value="10">Top 10</option>
+<option value="20" selected>Top 20</option>
+<option value="50">Top 50</option>
+<option value="100">Top 100</option>
+<option value="5000">Alle erfassten</option>
+</select>
+<select id="sort" aria-label="Sortierung">
+<option value="price">Günstigste zuerst</option>
+<option value="name">Produktname</option>
+<option value="new">Neueste Prüfung</option>
+</select>
+</div>
+</section>
+<section class="panel">
+<div class="tabs" style="margin-bottom:16px">
+<button id="productsTab" class="active">Produktliste</button>
+<button id="comparisonTab">Technischer Vergleich</button>
+<button id="offersTab">Werbepreise</button>
+</div>
+<div id="productsSection">
+<h2>Erfasste Produkte und €/m²-Preise</h2>
+<div id="tableHolder" class="table-wrap"></div>
+</div>
+<div id="comparisonSection" hidden>
+<h2>Vergleichsvorschläge mit technischen Unterschieden</h2>
+<p class="notice" style="margin:0 0 12px">Vorschläge sind anhand von Namen und Produktmerkmalen berechnet. Nur identische Herstellerartikel beziehungsweise hinreichend gleiche Eigenschaften dürfen als direkt vergleichbar gelten.</p>
+<div id="comparisonHolder"></div>
+</div>
+<div id="offersSection" hidden>
+<h2>Erkannte Werbepreise, Aktionen und Angebote</h2>
+<p class="notice" style="margin:0 0 12px">Ein Aktionshinweis beweist nicht automatisch eine echte Preisreduzierung. Vergleichspreise sind nur zuverlässig, wenn sie für dieselbe Verkaufseinheit gelten.</p>
+<div id="offersHolder"></div>
+</div>
+</section>
+<p class="foot">MarktRadar 5.0: Cloudflare Pages/Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert.</p>
+</main>
+</body>
+</html>
