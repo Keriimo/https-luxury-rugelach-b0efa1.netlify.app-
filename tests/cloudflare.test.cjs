@@ -213,7 +213,7 @@ test("Only laminate, parquet and vinyl/rigid vinyl; reject other floor materials
   ["Linoleum grau",null],
   ["Bioboden Exquisit",null],
   ["Korkboden",null],
-  ["Fußleiste passend für Vinyl",null],
+  ["Fußleiste passend für Vinyl","Leisten"],
   ["Trittschalldämmung für Laminat",null]
  ])assert.equal(x.typeOf(label),expected,label);
 });
@@ -284,4 +284,55 @@ test("Generic shops do not get an unconditional Shopify feed request",async()=>{
  const data=await r.json();
  assert.equal(r.status,200);
  assert.equal(data.jobs.some(j=>j.type==="shopify"),false);
+});
+
+test("Only standalone skirting boards are included from accessories",()=>{
+ const cases=[
+  ["Fußleiste Eiche weiß","Leisten"],
+  ["Sockelleisten MDF weiß","Leisten"],
+  ["Haro Sockelleiste passend für Parkett","Leisten"],
+  ["Laminat Eiche inklusive Fußleisten","Laminat"],
+  ["Vinyl Rigid mit Sockelleiste","Vinyl"],
+  ["Trittschalldämmung für Laminat",null],
+  ["Kleber für Sockelleisten",null],
+  ["Montagekleber",null],
+  ["Übergangsprofil",null],
+  ["Teppichboden grau",null],
+  ["PVC Boden grau",null]
+ ];
+ for(const [name,want] of cases)assert.equal(x.typeOf(name),want,name);
+});
+test("Skirting price by running meter and per piece stays separate from flooring prices",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const meter=x.detail('<main><h1>Sockelleiste Eiche MDF</h1><p>Grundpreis pro m: 3,49 €</p></main>',
+  site,site.root+"sockelleiste-eiche-100045678");
+ const piece=x.detail('<main><h1>Fußleiste weiß 240 cm</h1><p>Stückpreis: 8,95 €</p></main>',
+  site,site.root+"fussleiste-weiss-100045679");
+ assert.equal(meter.category,"Leisten");
+ assert.equal(meter.price,3.49);
+ assert.equal(meter.unit,"m");
+ assert.equal(piece.category,"Leisten");
+ assert.equal(piece.price,8.95);
+ assert.equal(piece.unit,"Stück");
+});
+test("Skirting board with no explicit unit must not receive an invented m² or unit price",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const item=x.detail('<main><h1>Sockelleiste Buche</h1><p>Paketpreis 10,90 €, 2.4 Meter</p></main>',
+  site,site.root+"sockelleiste-buche-100045699");
+ assert.equal(item.category,"Leisten");
+ assert.equal(item.price,null);
+ assert.equal(item.unit,null);
+});
+test("Catalog discovers skirting while ignoring other accessory pages",()=>{
+ const site=x.safeShop("https://boden-testshop.de/");
+ const html='<a href="/zubehoer">Zubehör</a>'+
+  '<a href="/sockelleisten">Sockelleisten</a>'+
+  '<a href="/sockelleiste-eiche-100012340">Sockelleiste Eiche 2,50 €/m</a>'+
+  '<a href="/products/kleber-1234">Montagekleber</a>';
+ const result=x.list(html,site,site.root);
+ assert.ok(result.jobs.some(j=>j.url===site.root+"sockelleisten"));
+ assert.equal(result.products.length,1);
+ assert.equal(result.products[0].category,"Leisten");
+ assert.equal(result.products[0].price,2.5);
+ assert.equal(result.products[0].unit,"m");
 });
