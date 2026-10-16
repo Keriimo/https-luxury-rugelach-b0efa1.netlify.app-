@@ -174,9 +174,17 @@ function renderShops(){
   const name=node("div","shop-data");
   name.append(node("strong",null,shop.name));
   name.append(node("small","muted break",shop.url));
-  const count=shop.items.length,priced=shop.items.filter(p=>p.price!==null&&p.price!==undefined).length;
-  name.append(node("small","muted",count+" Artikel · "+priced+" Preise "+(shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
-  item.append(c,name,btn("Bearbeiten",()=>editShop(shop),"secondary"),btn("Entfernen",()=>deleteShop(shop),"ghost"));
+  const count=shop.items.length,priced=shop.items.filter(validPrice).length;
+  const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
+  name.append(node("small","muted",count+" Artikel · "+priced+" €/m²-Preise "+(shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
+  if(shop.scan?.blocked)name.append(node("small","stale","Zugriff eingeschränkt · später erneut versuchen"));
+  else if(pending)name.append(node("small","muted",pending+" Prüfaufgaben ausstehend · Scan fortsetzen"));
+  else if(shop.scan?.failures)name.append(node("small","stale","Mit "+shop.scan.failures+" Abrufproblemen beendet"));
+  if(shop.scan?.errors?.length)name.append(node("small","muted","Hinweis: "+shop.scan.errors.slice(-1)[0]));
+  const edit=btn("Bearbeiten",()=>editShop(shop),"secondary");
+  const del=btn("Entfernen",()=>deleteShop(shop),"ghost");
+  edit.disabled=state.busy;del.disabled=state.busy;
+  item.append(c,name,edit,del);
   host.append(item);
  }
  const selected=state.shops.filter(s=>s.active);
@@ -409,7 +417,9 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,shopifyDone:scan.shopifyDone,checkedAt:now()};
+  pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
+  blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
 }
 
@@ -559,9 +569,11 @@ async function scanAll(restart){
    setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
    try{
     const result=await scanShop(shop,restart);
-    outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" Preise"+
-     (result.complete?"":" · weitere Prüfung möglich")+
-     (!result.count&&result.diagnostic?" · "+result.diagnostic:""));
+    outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" €/m²-Preise"+
+     (result.blocked?" · Abruf eingeschränkt":
+     result.complete?" · Durchlauf abgeschlossen":" · Scan unvollständig")+
+     (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
+     (result.diagnostic?" · "+result.diagnostic:""));
    }catch(e){outcomes.push(shop.name+": Fehler („"+e.message+"“)");}
   }
   setStatus(outcomes.join(" | ")+". Daten können unvollständig sein. Originalangebote prüfen.","normal");
