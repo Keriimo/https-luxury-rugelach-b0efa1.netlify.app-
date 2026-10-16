@@ -6,7 +6,7 @@ const file=fs.readFileSync("functions/api/catalog.js","utf8");
 const scope={URL,Response,Request,AbortController,TextDecoder,setTimeout,clearTimeout,fetch,console};
 vm.createContext(scope);
 vm.runInContext(file.replace(/^export /gm,"")+
- "\nthis.helpers={safeShop,checkedLink,typeOf,meterPrice,attrs,detail,list,sitemap,shopify};",scope);
+ "\nthis.helpers={safeShop,checkedLink,typeOf,meterPrice,attrs,detail,list,sitemap,shopify,robotsCatalog};",scope);
 const x=scope.helpers;
 const shop=x.safeShop("https://www.boden-testshop.de");
 test("Only secure public shops are allowed",()=>{
@@ -130,4 +130,19 @@ test("Real product parsing through API mock distinguishes price and category",as
 test("Promotions are not falsely inferred from global menu wording",()=>{
  const out=x.meterPrice("Klickvinyl Eiche, 19,99 € /m², normaler Preis",null,null);
  assert.equal(out.promotion,"");
+});
+
+test("Robots sitemap hints are discovered within the same shop",()=>{
+ const content="User-agent: *\nSitemap: https://www.boden-testshop.de/sitemap_products.xml\n"+
+  "Sitemap: https://unrelated.example.net/sitemap.xml\n";
+ const result=x.robotsCatalog(content,shop);
+ assert.equal(result.jobs.length,1);
+ assert.equal(result.jobs[0].type,"map");
+});
+test("Discount and sale wording in a global menu does not create a false offer",()=>{
+ const html='<html><nav>Sale 50% Rabatt</nav><main><h1>Laminat Eiche 8 mm</h1>'+
+  '<p>Preis m²: 14,99 €</p></main></html>';
+ const p=x.detail(html,shop,shop.root+"products/laminat-eiche");
+ assert.equal(p.price,14.99);
+ assert.equal(p.promotion,"");
 });
