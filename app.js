@@ -411,8 +411,13 @@ function renderPriceDuel(){
     cell.append(node("small","muted",entry.count+" Angebote mit Preis"));
     const title=node("small","muted",entry.best.name);
     cell.append(title);
-    if(lowest!==null&&entry.best.price===lowest)
+    if(lowest!==null&&entry.best.price===lowest){
       cell.append(node("small","green","Niedrigster erfasster Kategoriepreis"));
+    }else if(lowest!==null){
+      const gap=entry.best.price-lowest;
+      if(gap>0.001)cell.append(node("small","stale","+"+showEuro(gap)+
+       " zum günstigsten erfassten Kategoriepreis"));
+    }
     cell.append(productLink(entry.best,"Produkt ansehen ↗"));
    }else{
     cell.append(node("strong","price-unknown","Kein Preis erfasst"));
