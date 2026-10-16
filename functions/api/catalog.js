@@ -332,8 +332,12 @@ function list(html,site,url){
   }
  }
  for(const product of productMap.values())products.push(product);
- return {jobs:[...next].slice(0,120).map(url=>({type:"list",url})),
-  urls:[...urls].slice(0,2500),products:products.slice(0,2500)};
+ const jobs=[...next].slice(0,120).map(url=>({type:"list",url}));
+ // Shopify's public products.json is optional, and should only be attempted
+ // when the storefront itself advertises Shopify. Other stores never need it.
+ if(/(?:Shopify\.theme|Shopify\.shop|cdn\/shop\/|shopify-section|shopify\.com\/s\/files)/i.test(html))
+  jobs.push({type:"shopify",page:1});
+ return {jobs,urls:[...urls].slice(0,2500),products:products.slice(0,2500)};
 }
 function sitemap(html,site,url,offset){
  const isIndex=/<sitemapindex\b/i.test(html);
@@ -397,9 +401,9 @@ export async function onRequestPost({request}){
   const site=safeShop(input.site);
   if(action==="discover"){
    const jobs=[
+    {type:"list",url:site.start},
     {type:"robots",url:site.root+"robots.txt"},
     {type:"map",url:site.root+"sitemap.xml"},
-    {type:"list",url:site.start},
     {type:"map",url:site.root+"sitemap_index.xml"},
     {type:"map",url:site.root+"wp-sitemap.xml"}
    ];
