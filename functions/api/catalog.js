@@ -173,8 +173,15 @@ function productPagePrice(text,structured,pack){
    if(current&&current<500){
     const after=chunk.slice(euro[euro.length-1].index+euro[euro.length-1][0].length);
     if(!/(?:\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/i.test(after))
-     return {...meterPrice("",null,null),price:current,unit:"m²",
-       priceSource:"Komplettpreis €/m² auf Produktseite"};
+     {
+      const original=chunk.match(/\bstatt\s*(\d{1,4}(?:[,.]\d{2}))/i);
+      const oldValue=original?number(original[1]):null;
+      const oldPrice=oldValue&&oldValue>current?oldValue:null;
+      return {...meterPrice("",null,null),price:current,unit:"m²",
+       priceSource:"Komplettpreis €/m² auf Produktseite",
+       oldPrice,discountPct:oldPrice?Math.round((1-current/oldPrice)*100):null,
+       promotion:oldPrice?"Angebot mit ausgewiesenem Vergleichspreis":""};
+     }
    }
   }
  }
