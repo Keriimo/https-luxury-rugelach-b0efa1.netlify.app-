@@ -230,6 +230,8 @@ function renderShops(){
   if(shop.scan?.blocked)name.append(node("small","stale","Zugriff eingeschränkt · später erneut versuchen"));
   else if(pending)name.append(node("small","muted",pending+" Prüfaufgaben ausstehend · Scan fortsetzen"));
   else if(shop.scan?.failures)name.append(node("small","stale","Mit "+shop.scan.failures+" Abrufproblemen beendet"));
+  if(shop.scan?.unresolved?.length)name.append(node("small","stale",
+   shop.scan.unresolved.length+" Produktseiten konnten nicht geprüft werden – bitte Quellen prüfen"));
   if(shop.scan?.errors?.length)name.append(node("small","muted","Hinweis: "+shop.scan.errors.slice(-1)[0]));
   const edit=btn("Bearbeiten",()=>editShop(shop),"secondary");
   const del=btn("Entfernen",()=>deleteShop(shop),"ghost");
@@ -625,7 +627,7 @@ async function scanShop(shop,restart,quick=false){
   el("progress").textContent=shop.name+": "+scan.items.size+" Artikel, "+
     priced+" €/m²-Preise, "+scan.done+" Produktseiten geprüft, "+
     (scan.jobs.length+scan.urls.length)+" Aufgaben offen, "+
-    scan.failures+" Abrufprobleme"+
+    scan.failures+" Abrufprobleme"+(scan.unresolved?.length?" · "+scan.unresolved.length+" nicht prüfbar":"")+
     (scan.errors.length?" · "+scan.errors[scan.errors.length-1]:"");
  };
  const fail=(error,kind)=>{
@@ -639,7 +641,7 @@ async function scanShop(shop,restart,quick=false){
  };
  while((scan.jobs.length||scan.urls.length)&&
   (jobsDone<maxJobs||detailsDone<maxDetails)&&
-  Date.now()-start<maxMillis&&!scan.blocked){
+  Date.now()-start<maxMillis&&!scan.blocked&&!state.stopRequested){
   // Alternate catalog discovery and verification to produce usable prices earlier.
   const catalogNext=scan.jobs.length&&jobsDone<maxJobs&&
     (scan.urls.length<10||detailsDone>=maxDetails||processed%3!==1);
