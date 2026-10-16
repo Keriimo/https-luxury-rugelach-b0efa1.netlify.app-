@@ -563,7 +563,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isFloor).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:4,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:5,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
@@ -583,14 +583,15 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==4)saved=null;
+ if(saved&&saved.engineVersion!==5)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
    const jobs=found.jobs||[];
-   saved={engineVersion:4,
-    jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list"),{type:"shopify",page:1}],
-    urls:found.urls||[],visitedJobs:[],visitedUrls:[],
+   const unpriced=previous.filter(p=>p?.url&&isFloor(p)&&!validPrice(p)).map(p=>p.url);
+   saved={engineVersion:5,
+    jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list")],
+    urls:[...new Set([...unpriced,...(found.urls||[])])],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
   }catch(e){
    const message=errorKind(e);
@@ -666,12 +667,14 @@ async function scanShop(shop,restart,quick=false){
      }
     }catch(e){
      const label=errorKind(e);
-     // Not every shop publishes a Shopify feed or these optional sitemap paths.
-     if(label==="Seite nicht gefunden"&&["shopify","map","robots"].includes(job.type)){
+     // Shopify products.json is an optional shortcut. A rejected feed does
+     // not mean the ordinary product pages are inaccessible.
+     if(job.type==="shopify"){
+      scan.visitedJobs.add(key);
+     }else if(label==="Seite nicht gefunden"&&["map","robots"].includes(job.type)){
       scan.visitedJobs.add(key);
      }else{
       fail(e,job.type);
-      // If blocked, keep the exact task for a later manual retry.
       if(scan.blocked)scan.jobs.unshift(job);
       else scan.visitedJobs.add(key);
      }
