@@ -236,6 +236,7 @@ function renderShops(){
  const selected=state.shops.filter(s=>s.active);
  el("selectionCount").textContent=selected.length+" Shop"+(selected.length!==1?"s":"")+" ausgewählt";
  el("scanButton").disabled=state.busy||!selected.length;
+ el("deepScanButton").disabled=state.busy||!selected.length;
  el("resetButton").disabled=state.busy||!selected.length;
 }
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>s.items.map(p=>({...p,shopId:s.id,shopName:s.name})))}
@@ -609,7 +610,7 @@ async function api(site,action,extra){
   const raw=await res.text();
   let data;
   try{data=JSON.parse(raw);}catch(e){throw Error("Cloudflare /api/catalog: HTTP "+res.status+" · Antwort ist kein JSON");}
-  if(!res.ok)throw Error("Netlify /catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
+  if(!res.ok)throw Error("Cloudflare /api/catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(tid);}
 }
@@ -647,7 +648,7 @@ function errorKind(error){
  if(/quota|free|limit|Sicherheitsgrenze|Kostenlose/i.test(message))return "Gratislimit erreicht";
  return message.slice(0,130);
 }
-async function scanShop(shop,restart){
+async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
@@ -674,7 +675,7 @@ async function scanShop(shop,restart){
   errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
   blocked:false
  };
- const maxJobs=8,maxDetails=24,maxMillis=75000;
+ const maxJobs=quick?5:8,maxDetails=quick?8:24,maxMillis=quick?25000:75000;
  const start=Date.now();
  let jobsDone=0,detailsDone=0,processed=0;
  const progress=()=>{
@@ -779,7 +780,7 @@ async function scanShop(shop,restart){
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
-async function scanAll(restart){
+async function scanAll(restart,deep=false){
  if(state.busy)return;
  const shops=state.shops.filter(s=>s.active);
  if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
@@ -790,10 +791,11 @@ async function scanAll(restart){
    setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
    try{
     let result=null;
-    for(let round=0;round<2;round++){
+    const rounds=deep?2:1;
+    for(let round=0;round<rounds;round++){
      if(remainingRequests()<8)break;
-     setStatus(shop.name+": Katalog-Etappe "+(round+1)+" von maximal 2. Bitte den Tab geöffnet lassen.","normal");
-     result=await scanShop(shop,restart&&round===0);
+     setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+" – Etappe "+(round+1)+"/"+rounds+". Bereits erfasste Produkte bleiben sichtbar.","normal");
+     result=await scanShop(shop,restart&&round===0,!deep);
      if(result.blocked||result.complete||result.remaining===0)break;
     }
     if(!result){outcomes.push(shop.name+": Gratisbudget für diesen Browser ausgeschöpft.");continue;}
@@ -832,10 +834,20 @@ async function runDiagnostics(){
  }finally{btn.disabled=false;btn.textContent=old;}
 }
 restore();
+loadAppearance();
+el("appearanceButton").onclick=()=>{el("appearancePanel").hidden=!el("appearancePanel").hidden;};
+el("editorSave").onclick=saveAppearance;
+el("editorReset").onclick=()=>{
+ appearance={...STANDARD_STYLE};
+ try{localStorage.removeItem(APPEARANCE_KEY);}catch(e){}
+ updateAppearance();setStatus("Standarddarstellung wiederhergestellt.","ok");
+};
+el("clearCompare").onclick=()=>{state.manualCompare=[];render();};
 el("diagnoseButton").onclick=runDiagnostics;
 el("addButton").onclick=addShop;
-el("scanButton").onclick=()=>scanAll(false);
-el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true);}};
+el("scanButton").onclick=()=>scanAll(false,false);
+el("deepScanButton").onclick=()=>scanAll(false,true);
+el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true,false);}};
 el("exportButton").onclick=downloadJson;
 async function copyFilteredTable(){
  const rows=filteredItems();
