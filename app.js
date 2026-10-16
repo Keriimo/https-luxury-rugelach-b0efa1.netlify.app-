@@ -733,7 +733,11 @@ function mergeItem(map,p){
  if(p.price==null&&old.price!=null){
   next.price=old.price;next.unit=old.unit;next.priceSource=old.priceSource;
   next.priceCheckedAt=old.priceCheckedAt||old.checkedAt||null;
- }else if(p.price!=null)next.priceCheckedAt=p.checkedAt||new Date().toISOString();
+ }else if(p.price!=null){
+  next.priceCheckedAt=p.checkedAt||new Date().toISOString();
+  // A freshly fetched source price supersedes an older manually entered price.
+  next.manualPrice=false;
+ }
  if(!p.promotion&&old.promotion)next.promotion=old.promotion;
  if(!p.thickness&&old.thickness)next.thickness=old.thickness;
  map.set(p.url,next);
