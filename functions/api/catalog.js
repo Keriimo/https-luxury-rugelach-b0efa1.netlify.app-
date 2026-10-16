@@ -271,14 +271,15 @@ function isCategory(url,label){
  if(segments.length<=2&&/^(?:laminat|vinylböden?|vinylboden|rigid-vinyl|parkett|alle böden|alle produkte|bodenbeläge|angebote|sale)$/i.test(clean(label)))return true;
  return false;
 }
-function listingProduct(href,label){
+function listingProduct(href,label,localText=""){
  const title=nameClean(label.split(/\s+(?:statt|Komplett-Set|Komplettpreis|Du sparst|Paketpreis)\b/i)[0]
    .replace(/\s+\d{1,4}[,.]\d{2}\s*€.*$/,"")).slice(0,155);
  const category=typeOf(title);
  if(!category||title.length<8)return null;
  // Prices must be printed next to this product, never borrowed from unrelated
  // page navigation, recommendations, or another product card.
- const price=productPagePrice(label,null,null),features=attrs(label,title);
+ const own=localText||label;
+ const price=productPagePrice(own,null,null),features=attrs(own,title);
  return {name:title,url:href,category,...features,...price,
    sourcePage:href,checkedAt:new Date().toISOString(),
    verified:price.price!==null,provisional:true};
@@ -293,7 +294,26 @@ function list(html,site,url){
   const label=strip(match[2]).slice(0,700);
   if(isProduct(href)){
    urls.add(href);
-   const item=listingProduct(href,label);
+   let item=listingProduct(href,label);
+   // A product's sale price is often in a sibling of the product-name link.
+   // Only inspect a short window after this link, stopping before the next
+   // DIFFERENT product link to avoid attributing the next product's price.
+   if(item&&!item.verified){
+    const after=html.slice(anchor.lastIndex,anchor.lastIndex+2800);
+    let boundary=after.length,probe;
+    const following=/<a\b[^>]*href=["']([^"']+)["'][^>]*>/gi;
+    while((probe=following.exec(after))){
+     const nextHref=checkedLink(site,decode(probe[1]),url);
+     if(nextHref&&nextHref!==href&&isProduct(nextHref)){
+      boundary=probe.index;break;
+     }
+    }
+    const nearby=strip(after.slice(0,boundary)).slice(0,1450);
+    if(nearby&&nearby.length<1450){
+     const enriched=listingProduct(href,label,label+" "+nearby);
+     if(enriched&&enriched.verified)item=enriched;
+    }
+   }
    if(item){
     const previous=productMap.get(href);
     if(!previous||(!previous.verified&&item.verified))productMap.set(href,item);
