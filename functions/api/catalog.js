@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.4.0-free";
+const VERSION = "5.5.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -159,41 +159,39 @@ function meterPrice(text,structured,pack){
  return {price,unit,priceSource,oldPrice,discountPct,promotion};
 }
 function productPagePrice(text,structured,pack){
- // LaminatDEPOT often prints the full selling price as
- // "Komplettpreis statt 17,73 12,99 €/m²". Old prices are not offers.
+ // Only product-local content should enter this function.
+ // "Komplettpreis" appears on detail pages and "Komplett-Set" on category tiles.
  const t=clean(text).slice(0,70000);
- const segments=[...t.matchAll(/\bKomplettpreis\b/gi)].slice(0,8);
- for(const segment of segments){
-  const chunk=t.slice(segment.index,segment.index+175).split(/(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
-  const euro=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/gi)];
-  // Sometimes the old "statt" price is shown without a unit but the sale
-  // price is immediately followed by "€/m²".
-  if(euro.length){
-   const current=number(euro[euro.length-1][1]);
-   if(current&&current<500){
-    const after=chunk.slice(euro[euro.length-1].index+euro[euro.length-1][0].length);
-    if(!/(?:\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/i.test(after))
-     {
-      const original=chunk.match(/\bstatt\s*(\d{1,4}(?:[,.]\d{2}))/i);
-      const oldValue=original?number(original[1]):null;
-      const oldPrice=oldValue&&oldValue>current?oldValue:null;
-      return {...meterPrice("",null,null),price:current,unit:"m²",
-       priceSource:"Komplettpreis €/m² auf Produktseite",
-       oldPrice,discountPct:oldPrice?Math.round((1-current/oldPrice)*100):null,
-       promotion:oldPrice?"Angebot mit ausgewiesenem Vergleichspreis":""};
-     }
-   }
-  }
+ const anchors=[...t.matchAll(/\b(?:Komplettpreis|Komplett-Set)\b/gi)].slice(0,30);
+ for(const found of anchors){
+  const chunk=t.slice(found.index,found.index+175).split(
+   /(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
+  const candidates=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi)];
+  if(!candidates.length)continue;
+  // If "statt 20,00 €/m²" and the new € / m² price both appear after
+  // the label, the final *explicit* price is the current offer.
+  const candidate=candidates[candidates.length-1];
+  const current=number(candidate[1]);
+  if(!current||current>=500)continue;
+  const oldPart=t.slice(Math.max(0,found.index-85),found.index+candidate.index);
+  const oldMatch=oldPart.match(/\bstatt\s*(\d{1,4}(?:[,.]\d{2}))/i);
+  const oldValue=oldMatch?number(oldMatch[1]):null;
+  const oldPrice=oldValue&&oldValue>current?oldValue:null;
+  return {...meterPrice("",null,null),price:current,unit:"m²",
+   priceSource:/komplett-set/i.test(found[0])?
+     "Komplett-Set €/m² aus Katalog":"Komplettpreis €/m² auf Produktseite",
+   oldPrice,discountPct:oldPrice?Math.round((1-current/oldPrice)*100):null,
+   promotion:oldPrice?"Ausgewiesener Preisnachlass":""};
  }
- // Alternative product-specific section when the store displays "Boden"
- // but omits a clearly marked total.
- for(const section of [...t.matchAll(/\bBoden\s+(.{0,110})/gi)].slice(0,8)){
-  const chunk=section[1].split(/(?:inkl\.|Komplettpreis|Fußleiste|Dämmung)/i)[0];
-  const amount=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/gi)];
-  if(amount.length){
-   const current=number(amount[amount.length-1][1]);
+ // Explicit "Boden" price: accept only the tightly delimited product-specific
+ // section, not insulation, skirting or the package price.
+ for(const found of [...t.matchAll(/\bBoden\s+(.{0,110})/gi)].slice(0,8)){
+  const chunk=found[1].split(/(?:inkl\.|Komplettpreis|Komplett-Set|Fußleiste|Dämmung)/i)[0];
+  const candidates=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi)];
+  if(candidates.length){
+   const current=number(candidates[candidates.length-1][1]);
    if(current&&current<500)return {...meterPrice("",null,null),price:current,
-     unit:"m²",priceSource:"Bodenpreis €/m² auf Produktseite"};
+    unit:"m²",priceSource:"Bodenpreis €/m² auf Produktseite"};
   }
  }
  return meterPrice(t,structured,pack);
