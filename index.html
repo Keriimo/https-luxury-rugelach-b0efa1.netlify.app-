@@ -60,7 +60,7 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 .metric-card small{font-size:12px}
 .section-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:2px 0 13px}
 .section-intro h2{margin-bottom:3px}
-.best-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.best-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .best-card{border:1px solid var(--border);border-radius:13px;background:#fff;padding:16px;min-width:0}
 .best-card strong{display:block;font-size:24px;line-height:1.3;margin:8px 0 4px}
 .best-card .name{font-size:12px;color:var(--ink);overflow-wrap:anywhere}
@@ -120,18 +120,18 @@ a{color:#c51f32;text-decoration:underline}
 <header id="hero" class="hero">
 <div class="row between">
 <div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div>
-<div class="hero-tools"><span class="badge">Version 5.3 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-tools"><span class="badge">Version 5.4 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
-<p id="pageSubtitle">Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²</p>
+<p id="pageSubtitle">Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²</p>
 </header>
 <section class="panel" id="appearancePanel" hidden aria-label="Überschrift und Design bearbeiten">
  <div class="section-intro"><div><h2>Darstellung selbst anpassen</h2><div class="section-note">Nur für diesen Browser gespeichert · keine Änderung am Scanner</div></div></div>
  <div class="editor-grid">
   <div><label for="editorBrand">Marken-Zeile</label><input id="editorBrand" maxlength="65" placeholder="LAMINAT DEPOT · MARKTRADAR"></div>
   <div><label for="editorTitle">Überschrift</label><input id="editorTitle" maxlength="80" placeholder="Wettbewerbsanalyse"></div>
-  <div style="grid-column:1/-1"><label for="editorSubtitle">Untertitel</label><input id="editorSubtitle" maxlength="130" placeholder="Laminat · Vinyl · Parkett · Zubehör"></div>
+  <div style="grid-column:1/-1"><label for="editorSubtitle">Untertitel</label><input id="editorSubtitle" maxlength="130" placeholder="Laminat · Vinyl / Rigid-Vinyl · Parkett"></div>
   <div><label for="editorAccent">Akzentfarbe</label><select id="editorAccent"><option value="#e5233f">DEPOT-Rot</option><option value="#c51f32">Dunkelrot</option><option value="#2563eb">Blau</option><option value="#0c8c62">Grün</option></select></div>
   <div><label for="editorTheme">Kopfbereich</label><select id="editorTheme"><option value="#15233a">Dunkelblau (DEPOT-Stil)</option><option value="#101827">Anthrazit</option><option value="#ffffff">Hell</option></select></div>
  </div>
@@ -142,7 +142,7 @@ a{color:#c51f32;text-decoration:underline}
  </div>
 </section>
 <section class="panel" aria-label="Marktübersicht" id="overviewSection">
- <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note">Die günstigsten <strong>erfassten</strong> Angebote je Bodenart – keine Aussage zum gesamten Markt.</div></div>
+ <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note">Die günstigsten <strong>erfassten</strong> Angebote für Laminat, Vinyl / Rigid-Vinyl und Parkett. Kein garantierter Komplettkatalog.</div></div>
  <span class="data-status" id="priceCoverage">Noch keine Preisdaten</span></div>
  <div id="bestPriceGrid" class="best-grid"></div>
  <div class="section-rule"></div>
@@ -179,9 +179,7 @@ a{color:#c51f32;text-decoration:underline}
 <input id="productSearch" placeholder="Produktname, Artikelnummer oder Marke suchen" aria-label="Produkt suchen">
 <select id="category" aria-label="Kategorie">
 <option value="">Alle Kategorien</option>
-<option>Laminat</option><option>Vinyl</option><option>Parkett</option>
-<option>Bioboden &amp; Kork</option><option>Teppich</option><option>PVC</option>
-<option>Sonstige Bodenbeläge</option><option>Zubehör</option>
+<option value="Laminat">Laminat</option><option value="Vinyl">Vinyl / Rigid-Vinyl</option><option value="Parkett">Parkett</option>
 </select>
 <select id="promotions" aria-label="Aktion">
 <option value="">Alle Preise</option>
@@ -228,7 +226,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.3: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
+<p class="foot">MarktRadar 5.4: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
