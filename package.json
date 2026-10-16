@@ -1,6 +1,6 @@
 {
   "name": "marktradar-cloudflare",
-  "version": "5.5.0",
+  "version": "5.6.0",
   "private": true,
   "description": "Browserbasierte Wettbewerbsanalyse für Bodenbeläge – Cloudflare Pages Free",
   "scripts": {
