@@ -520,7 +520,7 @@ async function scanShop(shop,restart){
      // A blocked shop should not be retried continuously.
      if(scan.blocked)scan.jobs.unshift(job);
      else scan.visitedJobs.add(key);
-     if(job.type==="map"&&label==="Seite nicht gefunden")scan.failures--;
+     if(["map","robots"].includes(job.type)&&label==="Seite nicht gefunden")scan.failures--;
     }
    }
   }else if(scan.urls.length&&detailsDone<maxDetails){
