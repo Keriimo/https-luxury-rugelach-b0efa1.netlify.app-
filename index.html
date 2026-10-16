@@ -6,11 +6,18 @@
 <title>MarktRadar · Laminat DEPOT – Wettbewerbsanalyse</title>
 <meta name="description" content="Wettbewerbsanalysen für Laminat, Vinyl, Parkett, Bioboden und Zubehör. Preisvergleiche und technische Unterschiede.">
 <style>
-:root{--ink:#182338;--accent:#ed2e3c;--muted:#738097;--surface:#fff;--border:#e1e6ef;--base:#f3f5f9;--ok:#0d8c61}
+:root{--ink:#17243a;--accent:#e5233f;--muted:#66758b;--surface:#fff;--border:#e1e6ef;--base:#f2f4f7;--ok:#0c8c62;--hero:#15233a}
 *{box-sizing:border-box}
 body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif;background:var(--base);color:var(--ink)}
 .layout{max-width:1320px;margin:0 auto;padding:18px}
-.hero{background:#192437;border-radius:16px;padding:28px 30px;color:#fff}
+.hero{background:var(--hero);border-radius:18px;padding:28px 32px;color:#fff;box-shadow:0 8px 28px rgba(21,35,58,.09);position:relative;overflow:hidden}
+.hero:after{content:"";width:260px;height:260px;border:1px solid rgba(255,255,255,.08);border-radius:50%;position:absolute;right:-90px;top:-130px;pointer-events:none}
+.hero>*{position:relative;z-index:1}
+.hero h1{font-size:34px}
+.hero-tools{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.hero-tools button{background:rgba(255,255,255,.1);color:#fff;border-color:rgba(255,255,255,.22)}
+.hero-tools button:hover{background:rgba(255,255,255,.18)}
+.brand-ribbon{width:44px;height:5px;border-radius:10px;background:var(--accent);margin:12px 0}
 .kicker{letter-spacing:2px;font-size:12px;color:#ff7481;font-weight:900}
 h1{font-size:30px;margin:8px 0 4px;letter-spacing:-.7px}
 .hero p{font-size:13px;color:#cad3e0;margin:2px 0}
@@ -26,6 +33,8 @@ strong{font-weight:750}
 button,input,select{font:inherit;border:1px solid #d5dce8;border-radius:9px;padding:10px 12px}
 button{font-weight:700;cursor:pointer;background:white;color:var(--ink);white-space:nowrap}
 button.primary{background:var(--accent);color:white;border-color:var(--accent)}
+button.primary:hover{filter:brightness(.96)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid color-mix(in srgb,var(--accent) 28%,transparent);outline-offset:2px}
 button.ghost{border:0;background:transparent;color:#b23b47}
 button:disabled{opacity:.55;cursor:default}
 button.active{background:var(--accent);border-color:var(--accent);color:white}
@@ -43,7 +52,37 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 #message[data-kind=ok]{background:#e5f6ed;color:#155a38}
 #progress{background:#eaf0fc;color:#244b7b}
 .metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
-.metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white}
+.metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white;box-shadow:0 2px 8px rgba(24,35,56,.025)}
+.metric-card small{font-size:12px}
+.section-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:2px 0 13px}
+.section-intro h2{margin-bottom:3px}
+.best-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.best-card{border:1px solid var(--border);border-radius:13px;background:#fff;padding:16px;min-width:0}
+.best-card strong{display:block;font-size:24px;line-height:1.3;margin:8px 0 4px}
+.best-card .name{font-size:12px;color:var(--ink);overflow-wrap:anywhere}
+.best-card .muted{font-size:11px}
+.section-rule{height:1px;background:var(--border);margin:18px 0}
+.mini-table{width:100%;min-width:530px}
+.mini-table td,.mini-table th{padding:9px}
+.data-status{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;background:#f3f5f9;color:#5b6e86}
+.data-status.warn{background:#fff4e6;color:#965a15}
+.quick-category{display:flex;gap:8px;flex-wrap:wrap}
+.quick-category button{padding:7px 11px;border-radius:50px;font-size:12px}
+.quick-category button.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.editor-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.editor-grid input{width:100%}
+.editor-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.editor-note{font-size:12px;color:var(--muted)}
+.section-note{color:var(--muted);font-size:12px}
+.selection-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;background:#eef3f9;border-radius:11px;margin-bottom:13px}
+.pair .detail-box{overflow-x:auto}
+.pair strong,.offer strong{overflow-wrap:anywhere}
+.best-card a{font-size:12px}
+.best-card.empty-price strong{color:#8e99aa;font-size:20px}
+.offer .price small{font-size:11px}
+.price-unknown{color:#9a6320;font-weight:650}
+fieldset{border:0;padding:0;margin:0}
+
 .metric-val{font-size:31px;display:block;letter-spacing:-.6px;margin-top:4px}
 .filters{display:grid;grid-template-columns:minmax(220px,2.4fr) repeat(4,minmax(110px,1fr));gap:10px}
 .filters input,.filters select{width:100%}
@@ -67,8 +106,8 @@ a{color:#c51f32;text-decoration:underline}
 .offer .price{display:flex;flex-direction:column}
 .foot{font-size:11px;color:var(--muted);margin:16px 0;padding:5px}
 .badge{font-size:11px;color:#80e1aa;background:#294532;border-radius:20px;padding:5px 9px}
-@media(max-width:900px){.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters input{grid-column:span 2}.inputs{grid-template-columns:1fr 1fr}.inputs .add{grid-column:span 2}.metrics{grid-template-columns:repeat(2,1fr)}}
-@media(max-width:580px){.layout{padding:8px}.hero{padding:20px}h1{font-size:24px}.inputs,.filters{grid-template-columns:1fr}.inputs .add,.filters input{grid-column:span 1}.shop-entry{flex-wrap:wrap}.shop-entry .shop-data{min-width:calc(100% - 40px)}.panel{padding:14px}.metric-val{font-size:25px}}
+@media(max-width:900px){.best-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.filters{grid-template-columns:repeat(2,minmax(0,1fr))}.filters input{grid-column:span 2}.inputs{grid-template-columns:1fr 1fr}.inputs .add{grid-column:span 2}.metrics{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:580px){.hero h1{font-size:25px}.editor-grid{grid-template-columns:1fr}.best-grid{grid-template-columns:1fr 1fr}.best-card strong{font-size:20px}.layout{padding:8px}.hero{padding:20px}h1{font-size:24px}.inputs,.filters{grid-template-columns:1fr}.inputs .add,.filters input{grid-column:span 1}.shop-entry{flex-wrap:wrap}.shop-entry .shop-data{min-width:calc(100% - 40px)}.panel{padding:14px}.metric-val{font-size:25px}}
 </style>
 <script src="/app.js" defer></script>
 </head>
@@ -76,12 +115,36 @@ a{color:#c51f32;text-decoration:underline}
 <main class="layout">
 <header class="hero">
 <div class="row between">
-<div class="kicker">LAMINAT DEPOT · MARKTRADAR</div>
-<span class="badge">Version 5.1.0 · KOSTENLOS</span>
+<div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div>
+<div class="hero-tools"><span class="badge">Version 5.2 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
 </div>
-<h1>Wettbewerbsanalyse</h1>
-<p>Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²</p>
+<div class="brand-ribbon"></div>
+<h1 id="pageHeading">Wettbewerbsanalyse</h1>
+<p id="pageSubtitle">Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²</p>
 </header>
+<section class="panel" id="appearancePanel" hidden aria-label="Überschrift und Design bearbeiten">
+ <div class="section-intro"><div><h2>Darstellung selbst anpassen</h2><div class="section-note">Nur für diesen Browser gespeichert · keine Änderung am Scanner</div></div></div>
+ <div class="editor-grid">
+  <div><label for="editorBrand">Marken-Zeile</label><input id="editorBrand" maxlength="65" placeholder="LAMINAT DEPOT · MARKTRADAR"></div>
+  <div><label for="editorTitle">Überschrift</label><input id="editorTitle" maxlength="80" placeholder="Wettbewerbsanalyse"></div>
+  <div style="grid-column:1/-1"><label for="editorSubtitle">Untertitel</label><input id="editorSubtitle" maxlength="130" placeholder="Laminat · Vinyl · Parkett · Zubehör"></div>
+  <div><label for="editorAccent">Akzentfarbe</label><select id="editorAccent"><option value="#e5233f">DEPOT-Rot</option><option value="#c51f32">Dunkelrot</option><option value="#2563eb">Blau</option><option value="#0c8c62">Grün</option></select></div>
+  <div><label for="editorTheme">Kopfbereich</label><select id="editorTheme"><option value="#15233a">Dunkelblau (DEPOT-Stil)</option><option value="#101827">Anthrazit</option><option value="#ffffff">Hell</option></select></div>
+ </div>
+ <div class="editor-actions" style="margin-top:14px">
+  <button id="editorSave" class="primary">Darstellung speichern</button>
+  <button id="editorReset">Standard wiederherstellen</button>
+  <span class="editor-note">Die Einstellungen beeinflussen nur das Design, nicht den Scan.</span>
+ </div>
+</section>
+<section class="panel" aria-label="Marktübersicht" id="overviewSection">
+ <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note">Die günstigsten <strong>erfassten</strong> Angebote je Bodenart – keine Aussage zum gesamten Markt.</div></div>
+ <span class="data-status" id="priceCoverage">Noch keine Preisdaten</span></div>
+ <div id="bestPriceGrid" class="best-grid"></div>
+ <div class="section-rule"></div>
+ <div class="section-intro"><div><h3>Preisabdeckung je Shop</h3><div class="section-note">Ein Shop ohne geprüfte €/m²-Preise wird nicht künstlich mit Wettbewerbern verglichen.</div></div></div>
+ <div class="table-wrap" id="shopCoverage"></div>
+</section>
 <section class="panel" aria-label="Shopverwaltung">
 <div class="row between">
 <div><h2>Wettbewerber verwalten</h2><small class="muted">Shop-Links hinzufügen, bearbeiten und für den Vergleich auswählen</small></div>
@@ -105,8 +168,9 @@ a{color:#c51f32;text-decoration:underline}
 </section>
 <div id="metrics" class="metrics"></div>
 <section class="panel">
-<h2>Produkte suchen und filtern</h2>
-<div class="filters">
+<div class="section-intro"><div><h2>Produkte suchen und filtern</h2><div class="section-note">Schnellauswahl nach Bodenart, Produktname und Preis.</div></div></div>
+<div class="quick-category" id="quickCategories" aria-label="Kategorie-Schnellauswahl"></div>
+<div class="filters" style="margin-top:13px">
 <input id="productSearch" placeholder="Produktname, Artikelnummer oder Marke suchen" aria-label="Produkt suchen">
 <select id="category" aria-label="Kategorie">
 <option value="">Alle Kategorien</option>
@@ -135,17 +199,21 @@ a{color:#c51f32;text-decoration:underline}
 </section>
 <section class="panel">
 <div class="tabs" style="margin-bottom:16px">
-<button id="productsTab" class="active">Produktliste</button>
+<button id="productsTab" class="active">Alle Produkte</button>
 <button id="comparisonTab">Technischer Vergleich</button>
 <button id="offersTab">Werbepreise</button>
 </div>
 <div id="productsSection">
-<h2>Erfasste Produkte und €/m²-Preise</h2>
+<div class="section-intro"><div><h2>Erfasste Produkte und Preise</h2><div class="section-note">Mit „Vergleichen“ kannst du zwei Produkte manuell auswählen, auch wenn einem Shop der Preis fehlt.</div></div></div>
 <div id="tableHolder" class="table-wrap"></div>
 </div>
 <div id="comparisonSection" hidden>
 <h2>Vergleichsvorschläge mit technischen Unterschieden</h2>
-<p class="notice" style="margin:0 0 12px">Vorschläge sind anhand von Namen und Produktmerkmalen berechnet. Nur identische Herstellerartikel beziehungsweise hinreichend gleiche Eigenschaften dürfen als direkt vergleichbar gelten.</p>
+<p class="notice" style="margin:0 0 12px">Automatische Vorschläge sind keine bestätigte Gleichwertigkeit. Technische Merkmale lassen sich auch ohne Preis vergleichen; der Preisvorteil wird nur berechnet, wenn beide Preise bekannt sind.</p>
+<div class="selection-bar"><div id="manualSelectionLabel">Noch keine Produkte zum Vergleich ausgewählt.</div><div class="row"><button id="clearCompare">Auswahl löschen</button></div></div>
+<div id="manualComparisonHolder"></div>
+<div class="section-rule"></div>
+<h3>Automatische Vergleichsvorschläge</h3>
 <div id="comparisonHolder"></div>
 </div>
 <div id="offersSection" hidden>
@@ -154,7 +222,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.0: Cloudflare Pages/Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert.</p>
+<p class="foot">MarktRadar 5.2: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
