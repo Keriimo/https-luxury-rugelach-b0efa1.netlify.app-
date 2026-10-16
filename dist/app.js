@@ -254,93 +254,8 @@ function filteredItems(onlyOffers=false){
  if(state.sort==="new")list.sort((a,b)=>(b.checkedAt||"").localeCompare(a.checkedAt||""));
  return list.slice(0,state.limit);
 }
-function tokenSet(s){return new Set(neat(s).toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w=>w.length>=4&& !["laminat","boden","eiche","vinyl","parkett","inklusive","stärke","eicheoptik"].includes(w)))}
-let compareCache={signature:null,pairs:[]};
 function hasComparablePrice(a,b){
  return priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
-}
-function comparePairs(){
- const active=state.shops.filter(s=>s.active);
- const signature=active.map(s=>s.id+":"+s.items.length+":"+(s.checkedAt||"")).join("|");
- if(compareCache.signature===signature)return compareCache.pairs;
- const list=active.flatMap(s=>s.items.filter(p=>p.category&&p.name).map(p=>({...p,shopId:s.id,shopName:s.name})));
- const byToken=new Map(),byTechnical=new Map(),bySku=new Map(),pairs=[];
- function record(map,key,item,max=120){
-  const values=map.get(key)||[];
-  values.push(item);
-  if(values.length>max)values.shift();
-  map.set(key,values);
- }
- function evaluate(x,y){
-  if(x.shopId===y.shopId||x.category!==y.category)return null;
-  if(x.unit&&y.unit&&x.unit!==y.unit&&priceAvailable(x)&&priceAvailable(y))return null;
-  let score=0,signals=0,technical=0;
-  const matchingBrand=x.brand&&y.brand&&x.brand.toLowerCase()===y.brand.toLowerCase();
-  const sameSku=x.sku&&y.sku&&x.sku===y.sku&&(!x.brand||!y.brand||matchingBrand);
-  if(sameSku){score+=28;signals++;technical++;}
-  if(x.thickness!=null&&y.thickness!=null){
-   const delta=Math.abs(x.thickness-y.thickness);
-   if(delta<0.26){score+=5;signals++;technical++;}
-   else if(delta>1.5)score-=7;
-  }
-  if(x.wear!=null&&y.wear!=null){
-   if(Math.abs(x.wear-y.wear)<0.04){score+=4;signals++;technical++;}
-   else score-=3;
-  }
-  if(x.nk&&y.nk){
-   if(x.nk===y.nk){score+=4;signals++;technical++;}
-   else score-=3;
-  }
-  if(x.ac&&y.ac){
-   if(x.ac===y.ac){score+=3;signals++;technical++;}
-   else score-=2;
-  }
-  const a=tokenSet(x.name),b=tokenSet(y.name);
-  let common=0;
-  for(const word of a)if(b.has(word))common++;
-  score+=Math.min(common,4)*2;
-  if(common>=2)signals++;
-  if(matchingBrand){score+=2;signals++;}
-  if(signals<2&&!sameSku)return null;
-  if(score<7)return null;
-  return {score,quality:sameSku?"Identische Artikelkennung (prüfen)":
-   technical>=2?"Technisch ähnlich":"Ähnliche Produktangaben"};
- }
- for(const x of list){
-  const group=new Set();
-  for(const token of tokenSet(x.name)){
-   for(const y of byToken.get(x.category+"|"+token)||[])group.add(y);
-  }
-  const techKey=x.category+"|"+(x.thickness==null?"?":Math.round(x.thickness*4)/4);
-  if(x.thickness!=null)for(const y of byTechnical.get(techKey)||[])group.add(y);
-  if(x.sku)for(const y of bySku.get(x.sku)||[])group.add(y);
-  let best=null,score=-Infinity,quality="",seen=0;
-  for(const y of group){
-   if(seen++>=200)break;
-   const result=evaluate(x,y);
-   if(result&&result.score>score){best=y;score=result.score;quality=result.quality;}
-  }
-  if(best){
-   const pricePair=hasComparablePrice(x,best);
-   pairs.push({a:x,b:best,score,quality,pricePair,
-    diff:pricePair?x.price-best.price:null,
-    relative:pricePair?Math.abs(x.price-best.price)/Math.max(x.price,best.price):null});
-  }
-  for(const token of tokenSet(x.name))record(byToken,x.category+"|"+token,x,100);
-  if(x.thickness!=null)record(byTechnical,techKey,x,120);
-  if(x.sku)record(bySku,x.sku,x,70);
- }
- const unique=new Set(),used=new Set();
- const ranked=pairs.sort((a,b)=>Number(b.pricePair)-Number(a.pricePair)||b.score-a.score);
- const final=ranked.filter(p=>{
-  const id=[p.a.url,p.b.url].sort().join("|");
-  if(unique.has(id)||used.has(p.a.url+"|"+p.a.shopId)&&used.has(p.b.url+"|"+p.b.shopId))return false;
-  unique.add(id);
-  used.add(p.a.url+"|"+p.a.shopId);used.add(p.b.url+"|"+p.b.shopId);
-  return true;
- }).slice(0,500);
- compareCache={signature,pairs:final};
- return final;
 }
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett","Zubehör"];
@@ -456,16 +371,60 @@ function renderManualComparison(){
  }
  area.append(card);
 }
-function renderMetrics(items,pairs){
+function renderMetrics(items){
  const top=el("metrics");top.replaceChildren();
- const m=[["Gefundene Produkte",items.length],["Mit €/m²-Preis",items.filter(validPrice).length],
-  ["Shops",state.shops.filter(s=>s.active).length],["Vergleichsvorschläge",pairs.length]];
- for(const [label,n]of m){
+ const priced=items.filter(validPrice);
+ const pricedShops=state.shops.filter(shop=>shop.active&&shop.items.some(validPrice)).length;
+ const m=[["Gefundene Produkte",items.length],["Preise pro m²",priced.length],
+  ["Shops ausgewählt",state.shops.filter(shop=>shop.active).length],
+  ["Shops mit Preisen",pricedShops]];
+ for(const [label,value] of m){
   const card=node("div","metric-card");
-  card.append(node("small","muted",label),node("strong","metric-val",n));
+  card.append(node("small","muted",label),node("strong","metric-val",value));
   top.append(card);
  }
 }
+function renderPriceDuel(){
+ const area=el("priceDuelHolder");area.replaceChildren();
+ const shops=state.shops.filter(s=>s.active);
+ if(!shops.length){area.append(node("div","empty","Bitte zuerst Shops auswählen."));return;}
+ const categories=state.category?[state.category]:
+  ["Laminat","Vinyl","Parkett","Bioboden & Kork","Teppich","PVC","Zubehör"];
+ const table=node("table","mini-table"),head=node("thead"),line=node("tr"),body=node("tbody");
+ const cols=["Bodenart",...shops.map(shop=>shop.name)];
+ tableHeader(line,cols);head.append(line);
+ for(const category of categories){
+  const row=node("tr");
+  row.append(node("td",null,category));
+  const results=shops.map(shop=>{
+   const matches=shop.items.filter(p=>p.category===category&&priceAvailable(p)&&
+      (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+   const ranked=matches.sort((a,b)=>a.price-b.price);
+   return {count:ranked.length,best:ranked[0]};
+  });
+  const values=results.filter(r=>r.best);
+  const lowest=values.length>1?Math.min(...values.map(r=>r.best.price)):null;
+  for(const entry of results){
+   const cell=node("td");
+   if(entry.best){
+    cell.append(node("strong","price",showEuro(entry.best.price)+" /"+entry.best.unit));
+    cell.append(node("small","muted",entry.count+" Angebote mit Preis"));
+    const title=node("small","muted",entry.best.name);
+    cell.append(title);
+    if(lowest!==null&&entry.best.price===lowest)
+      cell.append(node("small","green","Niedrigster erfasster Kategoriepreis"));
+    cell.append(productLink(entry.best,"Produkt ansehen ↗"));
+   }else{
+    cell.append(node("strong","price-unknown","Kein Preis erfasst"));
+    cell.append(node("small","muted","Shop noch weiter prüfen"));
+   }
+   row.append(cell);
+  }
+  body.append(row);
+ }
+ table.append(head,body);area.append(table);
+}
+
 function tableHeader(tr,headers){for(const h of headers)tr.append(node("th",null,h));}
 function renderProducts(){
  const box=el("tableHolder");box.replaceChildren();
@@ -484,7 +443,8 @@ function renderProducts(){
    const valid=date&&Number.isFinite(date.getTime());
    const age=valid?Date.now()-date.getTime():Infinity;
    priceCell.append(node("small",age>24*60*60*1000?"stale":"muted",
-    valid?"Preis geprüft: "+date.toLocaleDateString("de-DE")+(age>24*60*60*1000?" · älter":""):"Prüfdatum unbekannt"));
+    valid?"Stand: "+date.toLocaleDateString("de-DE")+(age>24*60*60*1000?" · älter":""):"Prüfdatum unbekannt"));
+   if(p.provisional)priceCell.append(node("small","stale","Aus Katalogliste · Produkt prüfen"));
   }
   row.append(title,node("td",null,p.shopName),node("td",null,p.category),
    node("td",null,p.thickness!=null?p.thickness+" mm":"–"),
@@ -521,44 +481,7 @@ function comparisonDetail(pair,box){
  for(const p of [pair.a,pair.b]){const a=node("a",null,p.shopName+" ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";row.append(a);}
  box.append(row);
 }
-function renderComparisons(pairs){
- const area=el("comparisonHolder");area.replaceChildren();
- if(!pairs.length){
-  const statuses=state.shops.filter(sh=>sh.active).map(sh=>sh.name+": "+
-   sh.items.filter(validPrice).length+" erfasste €/m²-Preise");
-  area.append(node("div","empty",
-   "Noch keine automatischen technischen Alternativen gefunden. Du kannst trotzdem zwei Artikel in der Produktliste manuell vergleichen. "+statuses.join(" · ")));
-  return;
- }
- const choices=pairs.filter(pair=>{
-  const q=state.query.toLowerCase();
-  return (!state.category||pair.a.category===state.category)&&
-   (!state.promo||(state.promo==="yes"?(Boolean(pair.a.promotion)||Boolean(pair.b.promotion)):(!pair.a.promotion&&!pair.b.promotion)))&&
-   (!q||(pair.a.name+" "+pair.b.name).toLowerCase().includes(q));
- }).slice(0,state.limit);
- for(const pair of choices){
-  const item=node("div","pair"),left=node("div","pair-body");
-  left.append(node("strong",null,pair.a.shopName+": "+pair.a.name));
-  left.append(node("small","muted","↔ "+pair.b.shopName+": "+pair.b.name));
-  left.append(node("small","muted",pair.quality+" · Vorschlag, keine bestätigte Gleichwertigkeit"));
-  if(pair.pricePair){
-   const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
-   left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
-   left.append(node("strong","green",
-    (pair.diff===0?"Gleicher Preis":smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" /"+pair.a.unit)
-    +" · "+Math.round(pair.relative*100)+" % Unterschied"));
-  }else{
-   left.append(node("strong","price-unknown","Preisvergleich noch nicht möglich – €/m²-Preis fehlt auf mindestens einer Seite"));
-   left.append(node("small","muted",
-    pair.a.shopName+": "+(validPrice(pair.a)?showEuro(pair.a.price)+" /m²":"kein verifizierter €/m²-Preis")+
-    " · "+pair.b.shopName+": "+(validPrice(pair.b)?showEuro(pair.b.price)+" /m²":"kein verifizierter €/m²-Preis")));
-  }
-  const detail=node("div","detail-box");detail.hidden=true;
-  item.append(left,btn("Merkmale ansehen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
-  area.append(item);
- }
- if(!choices.length)area.append(node("div","empty","Keine Vorschläge für diese Filter. In der Produktliste kannst du zwei beliebige Böden auswählen."));
-}
+
 function renderPromos(){
  const area=el("offersHolder");area.replaceChildren();
  const list=filteredItems(true);
@@ -575,8 +498,8 @@ function renderPromos(){
  }
 }
 function render(){
- const all=allItems(),pairs=comparePairs();
- renderMetrics(all,pairs);renderOverview(all);renderQuickCategories();
+ const all=allItems();
+ renderMetrics(all);renderOverview(all);renderQuickCategories();
  el("productsTab").classList.toggle("active",state.tab==="products");
  el("comparisonTab").classList.toggle("active",state.tab==="comparison");
  el("offersTab").classList.toggle("active",state.tab==="offers");
@@ -584,7 +507,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison"){renderManualComparison();renderComparisons(pairs);}
+ if(state.tab==="comparison"){renderPriceDuel();renderManualComparison();}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
@@ -632,7 +555,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:3,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
@@ -651,10 +574,14 @@ function errorKind(error){
 async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
+ // Refresh legacy crawl queues but never discard previously collected products.
+ if(saved&&saved.engineVersion!==3)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
-   saved={jobs:[{type:"shopify",page:1},...(found.jobs||[])],
+   const jobs=found.jobs||[];
+   saved={engineVersion:3,
+    jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list"),{type:"shopify",page:1}],
     urls:found.urls||[],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
   }catch(e){
@@ -782,33 +709,44 @@ async function scanShop(shop,restart,quick=false){
 }
 async function scanAll(restart,deep=false){
  if(state.busy)return;
- const shops=state.shops.filter(s=>s.active);
+ const shops=state.shops.filter(shop=>shop.active);
  if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
  state.busy=true;renderShops();el("progress").hidden=false;
- const outcomes=[];
+ const outcomes=new Map();
+ const completed=new Set();
+ const rounds=deep?2:1;
  try{
-  for(const shop of shops){
-   setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
-   try{
-    let result=null;
-    const rounds=deep?2:1;
-    for(let round=0;round<rounds;round++){
-     if(remainingRequests()<8)break;
-     setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+" – Etappe "+(round+1)+"/"+rounds+". Bereits erfasste Produkte bleiben sichtbar.","normal");
-     result=await scanShop(shop,restart&&round===0,!deep);
-     if(result.blocked||result.complete||result.remaining===0)break;
+  // Round robin: every selected shop gets the same crawl budget per stage.
+  for(let round=0;round<rounds;round++){
+   for(const shop of shops){
+    if(completed.has(shop.id))continue;
+    if(remainingRequests()<6){
+     outcomes.set(shop.id,shop.name+": Tagesbudget aufgebraucht; erfasste Artikel bleiben erhalten.");
+     completed.add(shop.id);continue;
     }
-    if(!result){outcomes.push(shop.name+": Gratisbudget für diesen Browser ausgeschöpft.");continue;}
-    outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" €/m²-Preise"+
-     (result.blocked?" · Abruf eingeschränkt":
-     result.complete?" · Durchlauf abgeschlossen":" · Scan unvollständig")+
-     (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
-     (result.diagnostic?" · "+result.diagnostic:""));
-   }catch(e){outcomes.push(shop.name+": Fehler („"+e.message+"“)");}
+    setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+
+      " · Durchgang "+(round+1)+"/"+rounds+
+      ". Für alle ausgewählten Shops gelten dieselben Scan-Grenzen.","normal");
+    try{
+     const result=await scanShop(shop,restart&&round===0,!deep);
+     outcomes.set(shop.id,shop.name+": "+result.count+" erfasste Artikel, "+
+       result.priced+" €/m²-Preise"+
+       (result.blocked?" · Zugriff eingeschränkt":
+        result.complete?" · geprüft":" · Erfassung läuft")+
+       (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
+       (result.diagnostic?" · "+result.diagnostic:""));
+     if(result.blocked||result.complete||result.remaining===0)completed.add(shop.id);
+    }catch(e){
+     outcomes.set(shop.id,shop.name+": Fehler („"+e.message+"“)");
+     completed.add(shop.id);
+    }
+   }
   }
-  setStatus(outcomes.join(" | ")+". Daten können unvollständig sein. Originalangebote prüfen.","normal");
+  setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
+   ". Bestpreise beziehen sich auf gefundene Produkte, nicht auf vollständige Shopsortimente.","normal");
  }finally{state.busy=false;renderShops();render();}
 }
+
 function downloadJson(){
  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),shops:state.shops},null,2)],{type:"application/json"});
  const u=URL.createObjectURL(blob),a=node("a");a.href=u;a.download="marktradar-export.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
