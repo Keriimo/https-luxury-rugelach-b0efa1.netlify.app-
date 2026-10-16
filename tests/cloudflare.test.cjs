@@ -301,3 +301,31 @@ test("Standalone skirting, adhesive and other accessories are excluded",()=>{
  assert.equal(cards.products.length,1);
  assert.equal(cards.products[0].category,"Laminat");
 });
+
+test("Laminat DEPOT catalog discovery starts on all four verified flooring pages",async()=>{
+ const response=await api.post({request:apiRequest("https://laminatdepot.de/","discover")});
+ const json=await response.json();
+ assert.equal(response.status,200);
+ const urls=json.jobs.filter(j=>j.type==="list").map(j=>j.url);
+ for(const suffix of ["alleboeden","laminat","vinylboeden","parkett"])
+  assert.ok(urls.includes("https://laminatdepot.de/"+suffix),suffix);
+});
+test("Shop list follows public floor catalog page navigation, including German 'zu Seite' labels",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<a href="/alle-produkte/laminat-eiche-100010934">Laminat Eiche LHD Komplett-Set 9,99 €/m²</a>'+
+  '<a href="/paging/page0?PageNumber=1&PageSize=60&CatalogID=laminat">zu Seite 2 von 5</a>';
+ const discovered=x.list(html,site,site.root+"laminat");
+ assert.equal(discovered.products.length,1);
+ assert.equal(discovered.products[0].price,9.99);
+ assert.ok(discovered.jobs.some(j=>j.type==="list"&&/PageNumber=1/.test(j.url)));
+});
+test("Clearly named accessory product URLs are excluded before requesting detail pages",()=>{
+ const site=x.safeShop("https://laminatdepot.de/");
+ const html='<a href="/alle-produkte/trittschall-fuer-laminat-100010934">Trittschalldämmung für Laminat</a>'+
+  '<a href="/alle-produkte/sockelleiste-fuer-parkett-100010935">Sockelleiste für Parkett</a>'+
+  '<a href="/alle-produkte/laminat-eiche-100010936">Laminat Eiche Komplett-Set 13,99 €/m²</a>';
+ const found=x.list(html,site,site.root+"laminat");
+ assert.equal(found.products.length,1);
+ assert.equal(found.urls.length,1);
+ assert.equal(found.products[0].category,"Laminat");
+});
