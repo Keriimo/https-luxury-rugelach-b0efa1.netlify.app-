@@ -104,7 +104,7 @@ function typeOf(text){
 }
 function nameClean(text){return trim(text).replace(/^[45][,.]\d\s*\(\d+\)\s*/,"").slice(0,160);}
 function attrs(text,name){
- const t=(name+" "+text).slice(0,20000);
+ const t=(name+" "+text).slice(0,65000);
  const thick=t.match(/(?:Stärke|Gesamtdicke|Dicke)\s*:?\s*(\d+(?:[,.]\d+)?)\s*mm/i)
    ||t.match(/(\d+(?:[,.]\d+)?)\s*mm\s*(?:stark|dick|Stärke)/i)
    ||name.match(/(\d+(?:[,.]\d+)?)\s*mm/i);
