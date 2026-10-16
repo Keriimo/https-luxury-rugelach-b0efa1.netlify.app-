@@ -56,9 +56,22 @@ function boot(withProducts=true,mockFetch=async()=>{throw Error("Network not exp
 }
 test("Dashboard boots with available shop products and no network requests",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,2);
  assert.equal(app.elements.get("shopCoverage").children.length,1);
  assert.equal(app.state.shops.length,2);
+});
+test("Price radar shows separate shops and never borrows competitor prices",()=>{
+ const app=boot();
+ const blocks=app.elements.get("bestPriceGrid").children;
+ const flatten=n=>[n.textContent||"",...(n.children||[]).map(flatten)].join(" ");
+ assert.equal(blocks.length,2);
+ assert.match(flatten(blocks[0]),/Laminat DEPOT/);
+ assert.match(flatten(blocks[0]),/Preis fehlt/);
+ assert.doesNotMatch(flatten(blocks[0]),/13,99/);
+ assert.match(flatten(blocks[1]),/Laminat-Shop24/);
+ assert.match(flatten(blocks[1]),/13,99/);
+ assert.equal(blocks[0].children[1].children.length,3);
+ assert.equal(blocks[1].children[1].children.length,3);
 });
 test("Category price duel shows missing prices instead of invented advantages",()=>{
  const app=boot();
@@ -125,7 +138,7 @@ test("All shops share the same bounded scanner and old products remain in storag
 
 test("Only three flooring categories appear in dropdown and radar",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,2);
  assert.match(html,/Vinyl \/ Rigid-Vinyl/);
  assert.doesNotMatch(html,/<option[^>]*>Teppich<\/option>/i);
  assert.doesNotMatch(html,/<option[^>]*>PVC<\/option>/i);
@@ -156,7 +169,7 @@ test("More than 300 floor products remain in browser storage without IndexedDB",
  const saved=JSON.parse(app.values.get("marktradar:catalog:v3"));
  assert.equal(saved.shops[0].items.length,340);
  app.api.render();
- assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,2);
 });
 
 test("Browser full scan is bounded, resumable and supports stopping",()=>{
