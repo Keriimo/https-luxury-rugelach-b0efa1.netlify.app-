@@ -269,7 +269,7 @@ function filteredItems(onlyOffers=false){
  return list.slice(0,state.limit);
 }
 function hasComparablePrice(a,b){
- return priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
+ return a.category===b.category&&priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
 }
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
@@ -289,7 +289,7 @@ function renderOverview(items){
  const section=el("bestPriceGrid");section.replaceChildren();
  const prices=items.filter(validPrice);
  const count=prices.length;
- el("priceCoverage").textContent=count+" Produkte mit erfasstem €/m²-Preis";
+ el("priceCoverage").textContent=count+" Bodenbeläge mit erfasstem €/m²-Preis";
  el("priceCoverage").classList.toggle("warn",!count);
  for(const category of PRICE_CATEGORIES){
   const options=items.filter(p=>p.category===category&&validPrice(p));
@@ -308,12 +308,28 @@ function renderOverview(items){
   }
   section.append(card);
  }
+ const boards=items.filter(p=>p.category==="Leisten"&&priceAvailable(p));
+ const boardCard=node("div","best-card"+(!boards.length?" empty-price":""));
+ boardCard.append(node("small","muted","Bestpreise · Fuß-/Sockelleisten"));
+ for(const unit of ["m","Stück"]){
+  const found=boards.filter(p=>p.unit===unit).sort((a,b)=>a.price-b.price)[0];
+  const label=unit==="m"?"Laufender Meter":"Stückpreis";
+  if(found){
+   boardCard.append(node("strong",null,showEuro(found.price)+" /"+unit));
+   boardCard.append(node("small","muted",label+" · "+found.shopName));
+   boardCard.append(node("div","name",found.name));
+   boardCard.append(productLink(found,"Produkt ansehen ↗"));
+  }else boardCard.append(node("small","muted",label+": noch kein verifizierter Preis"));
+ }
+ section.append(boardCard);
  const wrap=el("shopCoverage");wrap.replaceChildren();
  const table=node("table","mini-table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
- tableHeader(tr,["Shop","Produkte erfasst","Mit €/m²","Günstigster erfasster Boden","Scanstatus"]);
+ tableHeader(tr,["Shop","Bodenbeläge","Mit €/m²","Fuß-/Sockelleisten","Günstigster Boden","Scanstatus"]);
  thead.append(tr);
  for(const shop of state.shops.filter(x=>x.active)){
   const floor=(shop.items||[]).filter(isFloor),all=floor,verified=floor.filter(validPrice);
+  const boards=(shop.items||[]).filter(p=>normalizedItem(p).category==="Leisten");
+  const boardsPriced=boards.filter(p=>priceAvailable(normalizedItem(p)));
   const best=verified.length?verified.reduce((a,b)=>a.price<b.price?a:b):null;
   const row=node("tr");
   const name=node("td");name.append(node("strong",null,shop.name));
@@ -326,11 +342,12 @@ function renderOverview(items){
     scan.failures?"Teilweise geprüft":"Prüfung beendet";
   }
   row.append(name,node("td",null,all.length),dataQuality,
+   node("td",null,boards.length+" Artikel · "+boardsPriced.length+" Preise"),
    node("td","price",best?showEuro(best.price)+" /m²":"Preis fehlt"),
    node("td",null,status));
   tbody.append(row);
  }
- if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=5;tr.append(cell);tbody.append(tr);}
+ if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=6;tr.append(cell);tbody.append(tr);}
  table.append(thead,tbody);wrap.append(table);
 }
 function renderQuickCategories(){
@@ -384,7 +401,7 @@ function renderManualComparison(){
   "Beide Preise sind pro "+a.unit+" erfasst; technische Unterschiede bitte einzeln prüfen.";
  card.append(node("p","notice",info));
  const detail=node("div","detail-box");comparisonDetail({a,b},detail);card.append(detail);
- if(unitCheck){
+ if(unitCheck&&sameCategory){
   const difference=Math.abs(a.price-b.price);
   const cheaper=a.price===b.price?"Gleicher Preis":a.price<b.price?a.shopName+" günstiger":b.shopName+" günstiger";
   card.append(node("strong","green",cheaper+": "+showEuro(difference)+" je "+a.unit));
@@ -395,9 +412,10 @@ function renderMetrics(items){
  const top=el("metrics");top.replaceChildren();
  const priced=items.filter(validPrice);
  const pricedShops=state.shops.filter(shop=>shop.active&&shop.items.some(validPrice)).length;
- const m=[["Gefundene Produkte",items.length],["Preise pro m²",priced.length],
-  ["Shops ausgewählt",state.shops.filter(shop=>shop.active).length],
-  ["Shops mit Preisen",pricedShops]];
+ const m=[["Produkte gesamt",items.length],["Bodenpreise €/m²",priced.length],
+  ["Leisten",items.filter(p=>p.category==="Leisten").length],
+  ["Leistenpreise",items.filter(p=>p.category==="Leisten"&&priceAvailable(p)).length],
+  ["Shops mit Bodenpreisen",pricedShops]];
  for(const [label,value] of m){
   const card=node("div","metric-card");
   card.append(node("small","muted",label),node("strong","metric-val",value));
@@ -408,33 +426,37 @@ function renderPriceDuel(){
  const area=el("priceDuelHolder");area.replaceChildren();
  const shops=state.shops.filter(s=>s.active);
  if(!shops.length){area.append(node("div","empty","Bitte zuerst Shops auswählen."));return;}
- const categories=state.category?[state.category]:PRICE_CATEGORIES;
+ const categories=state.category?[state.category]:SUPPORTED_CATEGORIES;
+ const groups=categories.flatMap(category=>category==="Leisten"?
+  [{category,unit:"m",label:"Fuß-/Sockelleisten · laufender Meter"},
+   {category,unit:"Stück",label:"Fuß-/Sockelleisten · Stück"}]:
+  [{category,unit:"m²",label:category==="Vinyl"?"Vinyl / Rigid-Vinyl":category}]);
  const table=node("table","mini-table"),head=node("thead"),line=node("tr"),body=node("tbody");
- const cols=["Bodenart",...shops.map(shop=>shop.name)];
- tableHeader(line,cols);head.append(line);
- for(const category of categories){
+ tableHeader(line,["Bodenbelag / Leisten",...shops.map(shop=>shop.name)]);head.append(line);
+ for(const {category,unit,label} of groups){
   const row=node("tr");
-  row.append(node("td",null,category==="Vinyl"?"Vinyl / Rigid-Vinyl":category));
+  row.append(node("td",null,label));
   const results=shops.map(shop=>{
-   const matches=shop.items.filter(p=>p.category===category&&validPrice(p));
-   const ranked=matches.sort((a,b)=>a.price-b.price);
-   return {count:ranked.length,best:ranked[0]};
+   const matches=shop.items.filter(item=>{
+    const p=normalizedItem(item);
+    return p.category===category&&priceAvailable(p)&&p.unit===unit;
+   }).map(normalizedItem).sort((a,b)=>a.price-b.price);
+   return {count:matches.length,best:matches[0]};
   });
   const values=results.filter(r=>r.best);
   const lowest=values.length>1?Math.min(...values.map(r=>r.best.price)):null;
   for(const entry of results){
    const cell=node("td");
    if(entry.best){
-    cell.append(node("strong","price",showEuro(entry.best.price)+" /"+entry.best.unit));
+    cell.append(node("strong","price",showEuro(entry.best.price)+" /"+unit));
     cell.append(node("small","muted",entry.count+" Angebote mit Preis"));
-    const title=node("small","muted",entry.best.name);
-    cell.append(title);
+    cell.append(node("small","muted",entry.best.name));
     if(lowest!==null&&entry.best.price===lowest){
       cell.append(node("small","green","Niedrigster erfasster Kategoriepreis"));
     }else if(lowest!==null){
       const gap=entry.best.price-lowest;
-      if(gap>0.001)cell.append(node("small","stale","+"+showEuro(gap)+
-       " zum günstigsten erfassten Kategoriepreis"));
+      if(gap>0.001)cell.append(node("small","stale",
+       "+"+showEuro(gap)+" zum günstigsten Angebot je "+unit));
     }
     cell.append(productLink(entry.best,"Produkt ansehen ↗"));
    }else{
@@ -513,8 +535,8 @@ function renderPromos(){
   const row=node("div","offer"),left=node("div","shop-data");
   left.append(node("strong",null,p.name),node("small","muted",p.shopName+" · "+p.category));
   const price=node("div","price");
-  price.append(node("strong",null,p.price!=null?showEuro(p.price):"Preis unbekannt"));
-  if(p.oldPrice&&p.price!=null)price.append(node("small","muted", "Vergleichspreis "+showEuro(p.oldPrice)));
+  price.append(node("strong",null,p.price!=null?showEuro(p.price)+" /"+(p.unit||"Einheit"):"Preis unbekannt"));
+  if(p.oldPrice&&p.price!=null)price.append(node("small","muted","Vergleichspreis "+showEuro(p.oldPrice)+" /"+(p.unit||"Einheit")));
   price.append(node("small","green",p.promotion));
   const a=node("a",null,"Prüfen ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
   row.append(left,price,a);area.append(row);
