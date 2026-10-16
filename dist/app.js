@@ -51,7 +51,7 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:12000,sort:"balanced",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:0,sort:"balanced",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={
  brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
@@ -366,7 +366,7 @@ function filteredItems(onlyOffers=false){
  if(state.sort==="price")list.sort((a,b)=>(a.price==null?1:0)-(b.price==null?1:0)||((a.price??Infinity)-(b.price??Infinity)));
  if(state.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"de"));
  if(state.sort==="new")list.sort((a,b)=>(b.checkedAt||"").localeCompare(a.checkedAt||""));
- return list.slice(0,state.limit);
+ return state.limit>0?list.slice(0,state.limit):list;
 }
 function hasComparablePrice(a,b){
  return a.category===b.category&&priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
@@ -805,7 +805,7 @@ function mergeItem(map,p){
 }
 let lastScanUiRefresh=0;
 function scanStats(shop,scan){
- shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem).slice(0,12000);
+ shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
   engineVersion:8,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
@@ -1123,7 +1123,7 @@ el("copyButton").onclick=copyFilteredTable;
 el("productSearch").oninput=e=>{state.query=e.target.value;render();};
 el("category").onchange=e=>{state.category=e.target.value;render();};
 el("promotions").onchange=e=>{state.promo=e.target.value;render();};
-el("limit").onchange=e=>{state.limit=Number(e.target.value)||20;render();};
+el("limit").onchange=e=>{state.limit=Math.max(0,Number(e.target.value)||0);render();};
 el("sort").onchange=e=>{state.sort=e.target.value;render();};
 for(const [id,t] of [["productsTab","products"],["comparisonTab","comparison"],["offersTab","offers"]]){
  el(id).onclick=()=>{state.tab=t;save();render();};
