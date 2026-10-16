@@ -1,13 +1,10 @@
-
 {
-  "name": "marktradar",
-  "version": "1.0.0",
+  "name": "marktradar-cloudflare",
+  "version": "5.1.0",
   "private": true,
-  "description": "Wettbewerbsanalyse für Bodenbeläge",
-  "dependencies": {
-    "cheerio": "1.0.0"
-  },
-  "engines": {
-    "node": ">=20"
+  "description": "Browserbasierte Wettbewerbsanalyse für Bodenbeläge – Cloudflare Pages Free",
+  "scripts": {
+    "test": "node --test tests/cloudflare.test.cjs",
+    "build": "sh build-cloudflare.sh"
   }
 }
