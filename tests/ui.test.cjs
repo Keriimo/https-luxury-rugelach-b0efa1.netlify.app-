@@ -44,8 +44,12 @@ function boot(withProducts=true){
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
   'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance};})();');
- new Function("document","window","localStorage","navigator",exposed)(
-  document,window,localStorage,{clipboard:{}});
+ class FakeFileReader{
+  readAsDataURL(file){this.result=file.data;this.onload();}
+  readAsText(file){this.result=file.content;this.onload();}
+ }
+ new Function("document","window","localStorage","navigator","FileReader",exposed)(
+  document,window,localStorage,{clipboard:{}},FakeFileReader);
  return {window,state:window.__marketRadarTest.state,api:window.__marketRadarTest,
   elements,localStorage,document,values};
 }
@@ -277,4 +281,41 @@ test("Design validation accepts a small PNG logo but rejects SVG and remote imag
  assert.equal(check({logo:"data:image/svg+xml;base64,AAA"}).logo,"");
  assert.equal(check({logo:"https://external.example/logo.png"}).logo,"");
  assert.equal(check({accent:"var(--evil)"}).accent,"#e5233f");
+});
+
+test("Local PNG logo upload and design save do not change product data",()=>{
+ const app=boot();
+ const before=app.values.get("marktradar:catalog:v3");
+ const data="data:image/png;base64,aGVsbG8=";
+ app.elements.get("editorLogo").files=[{size:100,type:"image/png",data}];
+ app.elements.get("editorLogo").onchange();
+ assert.equal(app.elements.get("editorLogoPreview").hidden,false);
+ app.elements.get("editorSave").click();
+ assert.equal(app.elements.get("brandLogo").hidden,false);
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,data);
+ assert.equal(app.values.get("marktradar:catalog:v3"),before);
+});
+test("Design import accepts portable JSON but not product catalog data",()=>{
+ const app=boot();
+ const before=app.values.get("marktradar:catalog:v3");
+ const design={type:"marktradar-design",version:1,appearance:{
+  brand:"Mein Firmenlogo",title:"Meine Vergleiche",accent:"#aabbcc",
+  logo:"data:image/png;base64,aGVsbG8="
+ }};
+ app.elements.get("editorImport").files=[{size:400,content:JSON.stringify(design)}];
+ app.elements.get("editorImport").onchange();
+ assert.equal(app.elements.get("pageHeading").textContent,"Meine Vergleiche");
+ assert.equal(app.elements.get("brandLogo").hidden,false);
+ assert.equal(app.values.get("marktradar:catalog:v3"),before);
+});
+test("SVG or oversized logo uploads are rejected",()=>{
+ const app=boot();
+ app.elements.get("editorLogo").files=[{size:100,type:"image/svg+xml",data:"data:image/svg+xml;base64,AAA"}];
+ app.elements.get("editorLogo").onchange();
+ app.elements.get("editorSave").click();
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,"");
+ app.elements.get("editorLogo").files=[{size:300000,type:"image/png",data:"data:image/png;base64,aGVsbG8="}];
+ app.elements.get("editorLogo").onchange();
+ app.elements.get("editorSave").click();
+ assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,"");
 });
