@@ -96,7 +96,7 @@ function typeOf(text){
  // The category MUST be found in the product's own title/type, never in the
  // global navigation on the same page.
  if(/(?:^|\b)(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)\b/.test(t))return null;
- if(/^(?:fußleiste|fussleiste|sockelleiste|dämmung|trittschall|unterlage|kleber|reiniger|abschlussprofil|zubehör)\b/.test(t))return null;
+ if(/^(?:fußleiste|fussleiste|sockelleiste|dämmung|trittschall|unterlage|kleber|reiniger|abschlussprofil|zubehör)/.test(t))return null;
  if(/parkett|fertigparkett|massivholz|schiffsboden/.test(t))return "Parkett";
  if(/laminat|laminate\b/.test(t))return "Laminat";
  if(/vinyl|rigid(?:[-\s]?vinyl)?|spc\b|lvt\b|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
