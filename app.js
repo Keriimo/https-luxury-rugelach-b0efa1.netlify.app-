@@ -374,7 +374,16 @@ function hasComparablePrice(a,b){
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
 const SUPPORTED_CATEGORIES=PRICE_CATEGORIES;
-const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
+const ACCESSORY_IN_TITLE=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|trittschall|unterlage|unterboden|wärmedämmung|waermedaemmung|isoliermatte|fußleisten?|fussleisten?|sockelleisten?|kleber|reiniger|abschlussprofil|übergangsprofil|uebergangsprofil|pflegeprodukt|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i;
+const FLOOR_TITLE_FIRST=/^(?:(?:klick|klebe)[-\s]?)?(?:laminat(?:boden)?|vinyl(?:boden)?|rigid[-\s]?vinyl|parkett|designboden|spc[-\s]?boden|lvt[-\s]?boden)\b/i;
+function looksLikeFloorProduct(p){
+ const name=String(p?.name||"").toLowerCase();
+ if(!name)return false;
+ if(!ACCESSORY_IN_TITLE.test(name))return true;
+ return FLOOR_TITLE_FIRST.test(name)&&
+  /(?:\bmit\b|\binklusive\b|\binkl\.|\binkl\b|\bintegrierter?\b|\binkludiert\b)/i.test(name);
+}
+const isFloor=p=>Boolean(p&&PRICE_CATEGORIES.includes(p.category)&&looksLikeFloorProduct(p));
 const isSupported=isFloor;
 const normalizedItem=p=>p;
 
@@ -808,7 +817,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:8,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:9,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -835,7 +844,7 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==8)saved=null;
+ if(saved&&saved.engineVersion!==9)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
