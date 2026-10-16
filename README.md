@@ -1,4 +1,13 @@
-# MarktRadar 5.9 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.10 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.10 – SELITAC-Unterlage ist kein Laminat
+
+- **Konkrete Korrektur:** SELITAC® 2,2 mm Faltplatte für Laminat (1,99 €/m²), SELITAC® 5 mm Faltplatte, SELITBLOC, Acoustic Board, Sound Eliminator, Faltplatten, Faltmatten sowie weitere Dämm-/Verlegeunterlagen werden **nicht als Laminat, Vinyl oder Parkett bewertet**, auch wenn die Produktkategorie falsch als Laminat angegeben ist.
+- **Bereits gespeicherte Angebote:** Filter greifen beim Anzeigen und Berechnen der Bestpreise, der Kennzahlen, der Produktliste sowie im technischen Vergleich. Bereits gespeicherte Rohdaten bleiben als Historie vorhanden und werden nicht heimlich gelöscht.
+- **Scaneingang:** Die Produkttitel, Artikel-Links, Produktdetails und Shopify-Kataloge werden geprüft; so können die genannten Zubehörartikel bei weiteren Scans keine neuen falschen Bestpreise erzeugen. Echte Laminatböden mit *inklusive Dämmung* bleiben als Bodenbelag zulässig.
+- **Qualitätssicherung:** Reale SELITAC-Produktbezeichnungen und der Preisfall 1,99 €/m² sind Regressionstests. Der korrekte Laminat-Bestpreis ergibt sich erst aus den verbleibenden tatsächlich erfassten Laminatböden. Fehlende Preise werden nicht geschätzt.
+- Bitte nach erfolgreichem Cloudflare-Build Version 5.10 mit Strg+F5 laden. Das ist eine Anzeige- und Scannerkorrektur, kein Löschen des lokalen Browserkatalogs.
+
 
 ## MarktRadar 5.9 – Automatikmodus, genaue Bodenfilter und Designstudio
 
