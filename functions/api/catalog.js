@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.7.0-free";
+const VERSION = "5.8.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -244,6 +244,9 @@ function detail(html,site,url){
 }
 function isProduct(url){
  const path=new URL(url).pathname.toLowerCase();
+ const slug=path.split("/").filter(Boolean).pop()||"";
+ // Do not waste detail-scan requests on accessories whose names mention floor types.
+ if(/^(?:(?:[a-z0-9-]+-)?(?:trittschall|daemmung|dammung|sockelleiste|fussleiste|fußleiste|kleber|montagekleber|abschlussprofil|uebergangsprofil|uebergangsprofil|zubehoer|zubehör|reiniger|teppichboden|pvc-boden))[-_]/i.test(slug))return false;
  if(/(?:teppich|nadelfilz|bioboden|korkboden|linoleum|pvc-boden|cv-belag|trittschall|daemmung|dammung|kleber|reiniger|abschlussprofil|fußleisten?|fussleisten?|sockelleisten?)/i.test(path)&&
    !/(?:vinyl|rigid|spc|lvt|parkett|laminat)/i.test(path))return false;
  if(/\/(?:zubehoer|zubehör)\//i.test(path))return false;
@@ -252,7 +255,6 @@ function isProduct(url){
  if(/\/[^/]+\.html?$/i.test(path))return true;
  if(/\/(?:laminat|parkett|vinylboeden?|designboden|bodenbelag|zubehoer)\/[^/]{12,}/i.test(path))return true;
  // Flat SEO product routes are common in floor shops (e.g. /laminat-eiche-100013100).
- const slug=path.split("/").filter(Boolean).pop()||"";
  if(/^((?:klick|klebe)[-_]?)?(?:laminat|vinyl|rigid|parkett|designboden|bodenbelag|boden)-[a-z0-9%-]{8,}/i.test(slug)&&
   /(?:[-_]\d{5,12}|[-_][a-z0-9]{6,})$/i.test(slug))return true;
  // Numeric end-of-slug article identifiers, independent of the merchant's naming style.
@@ -322,8 +324,8 @@ function list(html,site,url){
     const previous=productMap.get(href);
     if(!previous||(!previous.verified&&item.verified))productMap.set(href,item);
    }
-  }else if(/(?:[?&](?:page|p|pagenumber)=\d+|\/page\/\d+)/i.test(href) &&
-    /weiter|next|nächste|^\d{1,3}$|›|→/i.test(label))next.add(href);
+  }else if(/(?:[?&](?:page|p|pagenumber)=\d+|\/page\/\d+|\/paging\/page\d+)/i.test(href) &&
+    /weiter|next|nächste|\bseite\s*\d+|^\d{1,3}$|›|→/i.test(label))next.add(href);
   else if(isCategory(href,label))next.add(href);
  }
  // rel=next may live outside visible anchor tags.
@@ -406,6 +408,14 @@ export async function onRequestPost({request}){
   if(action==="discover"){
    const jobs=[
     {type:"list",url:site.start},
+    // Verified public category pages of Laminat DEPOT. These are discovery
+    // starting points, not a claim that the resulting scans will be complete.
+    ...(site.host==="laminatdepot.de"?[
+     {type:"list",url:site.root+"alleboeden"},
+     {type:"list",url:site.root+"laminat"},
+     {type:"list",url:site.root+"vinylboeden"},
+     {type:"list",url:site.root+"parkett"}
+    ]:[]),
     {type:"robots",url:site.root+"robots.txt"},
     {type:"map",url:site.root+"sitemap.xml"},
     {type:"map",url:site.root+"sitemap_index.xml"},
