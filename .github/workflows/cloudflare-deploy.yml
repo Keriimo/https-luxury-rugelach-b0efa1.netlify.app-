@@ -1,6 +1,18 @@
 name: MarktRadar – Cloudflare veröffentlichen
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - 'index.html'
+      - 'app.js'
+      - 'functions/**'
+      - 'tests/**'
+      - 'build-cloudflare.sh'
+      - '_headers'
+      - '_routes.json'
+      - 'package.json'
+      - '.github/workflows/cloudflare-deploy.yml'
   workflow_dispatch:
 
 permissions:
@@ -17,8 +29,12 @@ jobs:
         shell: bash
         run: |
           if [ -z "$DEPLOY_HOOK" ]; then
-            echo "::error::GitHub Secret CLOUDFLARE_DEPLOY_HOOK fehlt."
-            exit 1
+            if [ "$GITHUB_EVENT_NAME" = "workflow_dispatch" ]; then
+              echo "::error::Das GitHub-Secret CLOUDFLARE_DEPLOY_HOOK fehlt."
+              exit 1
+            fi
+            echo "::warning::Deploy Hook noch nicht eingerichtet; normaler Cloudflare Git-Build bleibt möglich."
+            exit 0
           fi
           code="$(curl --silent --show-error --max-time 30 --output /dev/null --write-out '%{http_code}' --request POST "$DEPLOY_HOOK")"
           if [[ "$code" != 2* ]]; then
