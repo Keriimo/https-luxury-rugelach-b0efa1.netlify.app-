@@ -54,7 +54,7 @@ const DEFAULT=[
 let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[]};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
- subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · Fuß-/Sockelleisten",
+ subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²",
  accent:"#e5233f",hero:"#15233a"};
 let appearance={...STANDARD_STYLE};
 const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
@@ -225,11 +225,9 @@ function renderShops(){
   name.append(node("strong",null,shop.name));
   name.append(node("small","muted break",shop.url));
   const floorItems=shop.items.filter(isFloor);
-  const boardItems=shop.items.filter(p=>p.category==="Leisten");
   const count=floorItems.length,priced=floorItems.filter(validPrice).length;
   const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
-  name.append(node("small","muted",count+" Böden · "+priced+" €/m²-Preise · "+
-  boardItems.length+" Leisten · "+boardItems.filter(priceAvailable).length+" Leistenpreise "+
+  name.append(node("small","muted",count+" Bodenbeläge · "+priced+" €/m²-Preise "+
   (shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
   if(shop.scan?.blocked)name.append(node("small","stale","Zugriff eingeschränkt · später erneut versuchen"));
   else if(pending)name.append(node("small","muted",pending+" Prüfaufgaben ausstehend · Scan fortsetzen"));
@@ -254,8 +252,7 @@ function renderShops(){
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>
  s.items.filter(isSupported).map(item=>({...normalizedItem(item),shopId:s.id,shopName:s.name})))} 
 function validPrice(p){return isFloor(p)&&Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
-function priceAvailable(p){return validPrice(p)||
- (p?.category==="Leisten"&&Number.isFinite(p.price)&&p.price>0&&["m","Stück"].includes(p.unit))}
+function priceAvailable(p){return validPrice(p)}
 function filteredItems(onlyOffers=false){
  const q=state.query.toLowerCase();
  let list=allItems().filter(p=>
@@ -273,18 +270,11 @@ function hasComparablePrice(a,b){
 }
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
-const SUPPORTED_CATEGORIES=[...PRICE_CATEGORIES,"Leisten"];
+const SUPPORTED_CATEGORIES=PRICE_CATEGORIES;
 const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
-const isSkirtingName=name=>{
- const text=String(name||"");
- return /(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(text)&&
-  !/^(?:montagekleber|kleber|dämmung|trittschall|unterlage|reiniger|abschlussprofil|übergangsprofil|pflege)/i.test(text)&&
-  !/^(?:laminat|vinyl|rigid|parkett|designboden)\b.*\b(?:inklusive|inkl\.?|mit)\s+.{0,45}(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(text);
-};
-const isSupported=p=>p&&(SUPPORTED_CATEGORIES.includes(p.category)||
- (p.category==="Zubehör"&&isSkirtingName(p.name)));
-const normalizedItem=p=>p?.category==="Zubehör"&&isSkirtingName(p.name)?
- {...p,category:"Leisten"}:p;
+const isSupported=isFloor;
+const normalizedItem=p=>p;
+
 function productLink(p,label){
  const a=node("a",null,label||"Produkt öffnen ↗");
  a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
@@ -313,28 +303,12 @@ function renderOverview(items){
   }
   section.append(card);
  }
- const boards=items.filter(p=>p.category==="Leisten"&&priceAvailable(p));
- const boardCard=node("div","best-card"+(!boards.length?" empty-price":""));
- boardCard.append(node("small","muted","Bestpreise · Fuß-/Sockelleisten"));
- for(const unit of ["m","Stück"]){
-  const found=boards.filter(p=>p.unit===unit).sort((a,b)=>a.price-b.price)[0];
-  const label=unit==="m"?"Laufender Meter":"Stückpreis";
-  if(found){
-   boardCard.append(node("strong",null,showEuro(found.price)+" /"+unit));
-   boardCard.append(node("small","muted",label+" · "+found.shopName));
-   boardCard.append(node("div","name",found.name));
-   boardCard.append(productLink(found,"Produkt ansehen ↗"));
-  }else boardCard.append(node("small","muted",label+": noch kein verifizierter Preis"));
- }
- section.append(boardCard);
  const wrap=el("shopCoverage");wrap.replaceChildren();
  const table=node("table","mini-table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
- tableHeader(tr,["Shop","Bodenbeläge","Mit €/m²","Fuß-/Sockelleisten","Günstigster Boden","Scanstatus"]);
+ tableHeader(tr,["Shop","Bodenbeläge","Mit €/m²","Günstigster Boden","Scanstatus"]);
  thead.append(tr);
  for(const shop of state.shops.filter(x=>x.active)){
   const floor=(shop.items||[]).filter(isFloor),all=floor,verified=floor.filter(validPrice);
-  const boards=(shop.items||[]).filter(p=>normalizedItem(p).category==="Leisten");
-  const boardsPriced=boards.filter(p=>priceAvailable(normalizedItem(p)));
   const best=verified.length?verified.reduce((a,b)=>a.price<b.price?a:b):null;
   const row=node("tr");
   const name=node("td");name.append(node("strong",null,shop.name));
@@ -347,12 +321,11 @@ function renderOverview(items){
     scan.failures?"Teilweise geprüft":"Prüfung beendet";
   }
   row.append(name,node("td",null,all.length),dataQuality,
-   node("td",null,boards.length+" Artikel · "+boardsPriced.length+" Preise"),
    node("td","price",best?showEuro(best.price)+" /m²":"Preis fehlt"),
    node("td",null,status));
   tbody.append(row);
  }
- if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=6;tr.append(cell);tbody.append(tr);}
+ if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=5;tr.append(cell);tbody.append(tr);}
  table.append(thead,tbody);wrap.append(table);
 }
 function renderQuickCategories(){
@@ -417,10 +390,9 @@ function renderMetrics(items){
  const top=el("metrics");top.replaceChildren();
  const priced=items.filter(validPrice);
  const pricedShops=state.shops.filter(shop=>shop.active&&shop.items.some(validPrice)).length;
- const m=[["Produkte gesamt",items.length],["Bodenpreise €/m²",priced.length],
-  ["Leisten",items.filter(p=>p.category==="Leisten").length],
-  ["Leistenpreise",items.filter(p=>p.category==="Leisten"&&priceAvailable(p)).length],
-  ["Shops mit Bodenpreisen",pricedShops]];
+ const m=[["Bodenbeläge erfasst",items.length],["Geprüfte €/m²-Preise",priced.length],
+  ["Shops ausgewählt",state.shops.filter(shop=>shop.active).length],
+  ["Shops mit Preisen",pricedShops]];
  for(const [label,value] of m){
   const card=node("div","metric-card");
   card.append(node("small","muted",label),node("strong","metric-val",value));
@@ -606,7 +578,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:6,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:7,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -628,13 +600,13 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==6)saved=null;
+ if(saved&&saved.engineVersion!==7)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
    const jobs=found.jobs||[];
    const unpriced=previous.filter(p=>p?.url&&isSupported(p)&&!priceAvailable(normalizedItem(p))).map(p=>p.url);
-   saved={engineVersion:6,
+   saved={engineVersion:7,
     jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list")],
     urls:[...new Set([...unpriced,...(found.urls||[])])],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],retryCounts:{},unresolved:[],truncated:false};
