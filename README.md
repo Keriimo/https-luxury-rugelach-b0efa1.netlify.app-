@@ -1,4 +1,14 @@
-# MarktRadar 5.5 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.6 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.6 – Bodenbeläge und Fuß-/Sockelleisten
+
+- **Einzige Produktgruppen:** Laminat, Vinyl/Rigid-Vinyl, Parkett und **Fuß-/Sockelleisten** (eigene Kategorie „Leisten“).
+- Andere Zubehörprodukte wie Trittschalldämmung, Unterlagen, Montagekleber, Reinigungsmittel und Übergangsprofile werden weder als Leisten ausgezeichnet noch in den Produktlisten und Auswertungen angezeigt. Gleiches gilt weiterhin für Teppichboden, PVC, Bioboden und Kork.
+- Der Scanner erkennt Sockelleisten und Fußleisten in Produktnamen, SEO-Produktlinks und zugehörigen Kategorien. Zubehör-Kategorieseiten können als Wegweiser dienen, aber irrelevante Artikel werden ausgeschlossen.
+- **Kein Einheiten-Mix:** Bodenpreise je m²; Leistenpreise nur bei eindeutig ausgewiesener Einheit **€/laufendem Meter** oder **€/Stück**. Ohne klare Einheit bleibt der Leistenpreis unbekannt. Das Preisduell führt €/m und €/Stück in getrennten Reihen.
+- Frühere als „Zubehör“ gespeicherte Leisten werden anhand ihres Produktnamens als „Leisten“ behandelt, ohne bestehende Bodenbelag-Daten oder Shop-Links zu löschen.
+- Browser-Datenbank und Cloudflare-Worker bleiben unverändert; der Scan übernimmt mit der Versionsaktualisierung die neue Kategorie-Warteschlange.
+
 
 ## Version 5.5 – Vollscan und echte Laminat-DEPOT-Preise
 
