@@ -719,11 +719,14 @@ async function scanAll(restart,deep=false){
  state.busy=true;renderShops();el("progress").hidden=false;
  const outcomes=new Map();
  const completed=new Set();
- const rounds=deep?2:1;
+ const rounds=deep?12:1;
+ const overallStart=Date.now();
+ const maxSessionMs=deep?210000:60000;
  try{
   // Round robin: every selected shop gets the same crawl budget per stage.
-  for(let round=0;round<rounds;round++){
+  for(let round=0;round<rounds&&Date.now()-overallStart<maxSessionMs;round++){
    for(const shop of shops){
+    if(Date.now()-overallStart>=maxSessionMs)break;
     if(completed.has(shop.id))continue;
     if(remainingRequests()<6){
      outcomes.set(shop.id,shop.name+": Tagesbudget aufgebraucht; erfasste Artikel bleiben erhalten.");
@@ -748,7 +751,7 @@ async function scanAll(restart,deep=false){
    }
   }
   setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
-   ". Bestpreise beziehen sich auf gefundene Produkte, nicht auf vollständige Shopsortimente.","normal");
+   ". Offene Aufgaben mit „Scan vertiefen / fortsetzen“ erneut prüfen. Produktpreise vor Vertriebsaussagen kontrollieren.","normal");
  }finally{state.busy=false;renderShops();render();}
 }
 
