@@ -413,144 +413,140 @@ function scanStats(shop,scan){
  shop.checkedAt=now();save();renderShops();render();
 }
 
-async function legacyApi(shopId,action,body){
- const ctl=new AbortController(),timeout=setTimeout(()=>ctl.abort(),13000);
- try{
-  const url="/.netlify/functions/scan?shop="+encodeURIComponent(shopId)+"&action="+encodeURIComponent(action);
-  const response=await fetch(url,body?{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(body),signal:ctl.signal}:{signal:ctl.signal});
-  const raw=await response.text();
-  let data;
-  try{data=JSON.parse(raw);}catch(e){throw Error("Älterer Netlify-Scanner: HTTP "+response.status+" · keine JSON-Antwort");}
-  if(!response.ok)throw Error("Netlify /scan: HTTP "+response.status+" · "+(data.error||"Abruf fehlgeschlagen"));
-  return data;
- }finally{clearTimeout(timeout);}
-}
-function legacyId(shop){
- let host;
- try{host=new URL(shop.url).hostname.replace(/^www\./,"").toLowerCase();}catch(e){return null;}
- return host==="laminatdepot.de"?"depot":host==="laminat-shop24.com"?"shop24":null;
-}
-async function legacyFallback(shop,scan){
- const id=legacyId(shop);
- if(!id||!location.hostname.endsWith(".netlify.app"))return {checked:false,found:0};
- const before=scan.items.size,errors=[];
- const merge=values=>{for(const p of values||[]){
-  if(!p||!p.url||!p.name)continue;
-  const category=p.category==="Bioboden"?"Bioboden & Kork":p.category;
-  mergeItem(scan.items,{...p,category,unit:p.unit||"m²",checkedAt:new Date().toISOString()});
- }};
- try{merge((await legacyApi(id,"preview")).products);}catch(e){errors.push(e.message);}
- if(id==="shop24"){
-  try{const data=await legacyApi(id,"shopify");merge(data.products);}
-  catch(e){errors.push(e.message);}
- }
- try{
-  const discovery=await legacyApi(id,"discover");
-  const jobs=(discovery.jobs||[]).sort((a,b)=>Number(a.type==="sitemap")-Number(b.type==="sitemap"));
-  const detailUrls=[];
-  for(const job of jobs.slice(0,7)){
-   try{
-    const data=await legacyApi(id,"expand",job);
-    merge(data.products);
-    for(const u of data.urls||[]){
-     if(!detailUrls.includes(u)&&!scan.visitedUrls.has(u))detailUrls.push(u);
-    }
-   }catch(e){errors.push(e.message);}
-  }
-  for(let offset=0;offset<Math.min(detailUrls.length,30);offset+=5){
-   const urls=detailUrls.slice(offset,offset+5);
-   try{
-    const result=await legacyApi(id,"batch",{urls});
-    merge(result.products);
-   }catch(e){errors.push(e.message);}
-   await delay(200);
-  }
- }catch(e){errors.push(e.message);}
- return {checked:true,found:scan.items.size-before,errors};
+
+function errorKind(error){
+ const message=String(error?.message||error||"Abruf nicht möglich");
+ if(/403|401|Zugriff verweigert/i.test(message))return "Zugriff verweigert";
+ if(/429|rate.limit|zu viele anfragen/i.test(message))return "Anfragen begrenzt";
+ if(/Zeitüberschreitung|timed out|aborted/i.test(message))return "Zeitüberschreitung";
+ if(/404/i.test(message))return "Seite nicht gefunden";
+ if(/quota|free|limit|Sicherheitsgrenze|Kostenlose/i.test(message))return "Gratislimit erreicht";
+ return message.slice(0,130);
 }
 async function scanShop(shop,restart){
  const previous=Array.isArray(shop.items)?shop.items:[];
- let s=restart?null:shop.scan;
- let startupError=null;
- if(!s||(!s.jobs?.length&&!s.urls?.length)){
+ let saved=restart?null:shop.scan;
+ if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
-   const discovered=await api(shop.url,"discover");
-   s={jobs:discovered.jobs||[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:0,other:0,shopifyDone:false};
-   s.jobs.unshift({type:"shopify",page:1});
+   const found=await api(shop.url,"discover");
+   saved={jobs:[{type:"shopify",page:1},...(found.jobs||[])],
+    urls:found.urls||[],visitedJobs:[],visitedUrls:[],
+    pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
   }catch(e){
-   startupError=e.message||"Unbekannter Startfehler";
-   s={jobs:[],urls:[],visitedJobs:[],visitedUrls:[],pages:0,done:0,failures:1,other:0,shopifyDone:false};
+   const message=errorKind(e);
+   shop.scan={jobs:[],urls:[],visitedJobs:[],visitedUrls:[],
+    pages:0,done:0,failures:1,other:0,errors:[message],
+    blocked:message==="Zugriff verweigert"||message==="Anfragen begrenzt",checkedAt:now()};
+   save();renderShops();
+   return {complete:false,count:previous.length,priced:previous.filter(validPrice).length,
+    remaining:0,failed:1,diagnostic:message};
   }
  }
- const scan={...s,visitedJobs:new Set(s.visitedJobs||[]),visitedUrls:new Set(s.visitedUrls||[]),items:new Map(previous.map(p=>[p.url,p]))};
- const maxJobs=16,maxDetails=36;
- const started=Date.now();let jobsDone=0,detailsDone=0;const examples=[];
- if(startupError)examples.push("Universeller Scanner: "+startupError);
- const label=()=>shop.name+": "+scan.items.size+" Artikel, "+[...scan.items.values()].filter(p=>p.price!=null).length+
-  " Preise, "+scan.done+" Produktseiten geprüft, "+scan.failures+" technische Fehler, "+
-  (scan.jobs.length+scan.urls.length)+" offene Aufgaben";
- const status=()=>{el("progress").textContent=label();};
- while((scan.jobs.length||scan.urls.length)&&jobsDone<maxJobs&&detailsDone<maxDetails&&Date.now()-started<115000){
-  if(scan.jobs.length&&jobsDone<maxJobs){
-   const job=scan.jobs.shift(),key=job.type+":"+job.url+":"+(job.offset||job.page||0);
+ const scan={
+  ...saved,
+  visitedJobs:new Set(saved.visitedJobs||[]),
+  visitedUrls:new Set(saved.visitedUrls||[]),
+  items:new Map(previous.filter(p=>p?.url).map(p=>[p.url,p])),
+  errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
+  blocked:false
+ };
+ const maxJobs=8,maxDetails=24,maxMillis=75000;
+ const start=Date.now();
+ let jobsDone=0,detailsDone=0,processed=0;
+ const progress=()=>{
+  const priced=[...scan.items.values()].filter(validPrice).length;
+  el("progress").textContent=shop.name+": "+scan.items.size+" Artikel, "+
+    priced+" €/m²-Preise, "+scan.done+" Produktseiten geprüft, "+
+    (scan.jobs.length+scan.urls.length)+" Aufgaben offen, "+
+    scan.failures+" Abrufprobleme"+
+    (scan.errors.length?" · "+scan.errors[scan.errors.length-1]:"");
+ };
+ const fail=(error,kind)=>{
+  const label=errorKind(error);
+  scan.failures++;
+  if(!scan.errors.includes(label))scan.errors.push(label);
+  scan.errors=scan.errors.slice(-6);
+  if(label==="Zugriff verweigert"||label==="Anfragen begrenzt"||label==="Gratislimit erreicht")scan.blocked=true;
+  if(kind==="shopify"&&label==="Seite nicht gefunden")scan.failures--; // optional feed
+  return label;
+ };
+ while((scan.jobs.length||scan.urls.length)&&
+  (jobsDone<maxJobs||detailsDone<maxDetails)&&
+  Date.now()-start<maxMillis&&!scan.blocked){
+  // Alternate catalog discovery and verification to produce usable prices earlier.
+  const catalogNext=scan.jobs.length&&jobsDone<maxJobs&&
+    (scan.urls.length<10||detailsDone>=maxDetails||processed%3!==1);
+  if(catalogNext){
+   const job=scan.jobs.shift();
+   const key=job.type+":"+job.url+":"+(job.offset||job.page||0);
    if(!scan.visitedJobs.has(key)){
-    scan.visitedJobs.add(key);jobsDone++;scan.pages++;
+    jobsDone++;processed++;scan.pages++;
     try{
      const data=job.type==="shopify"?
       await api(shop.url,"shopify",{page:job.page}):
       await api(shop.url,"expand",{job});
-     for(const p of data.products||[])mergeItem(scan.items,p);
+     scan.visitedJobs.add(key);
+     for(const product of data.products||[])mergeItem(scan.items,product);
      if(job.type==="shopify"){
-      for(const p of data.products||[]){
-       if(p.url&&!scan.visitedUrls.has(p.url)&&!scan.urls.includes(p.url))scan.urls.push(p.url);
+      for(const product of data.products||[]){
+       if(product.url&&!scan.visitedUrls.has(product.url)&&
+        !scan.urls.includes(product.url))scan.urls.push(product.url);
       }
       if(data.hasMore&&job.page<30)scan.jobs.push({type:"shopify",page:job.page+1});
      }else{
-      for(const j of data.jobs||[])scan.jobs.push(j);
-      for(const url of data.urls||[])if(!scan.visitedUrls.has(url)&&!scan.urls.includes(url))scan.urls.push(url);
+      for(const next of data.jobs||[]){
+       const token=next.type+":"+next.url+":"+(next.offset||next.page||0);
+       if(!scan.visitedJobs.has(token)&&!scan.jobs.some(j=>j.type+":"+j.url+":"+(j.offset||j.page||0)===token))scan.jobs.push(next);
+      }
+      for(const url of data.urls||[]){
+       if(!scan.visitedUrls.has(url)&&!scan.urls.includes(url))scan.urls.push(url);
+      }
+      if(data.truncated)scan.truncated=true;
      }
     }catch(e){
-      if(job.type!=="shopify")scan.failures++;
-      if(examples.length<3)examples.push(job.type+": "+e.message);
+     const label=fail(e,job.type);
+     // A blocked shop should not be retried continuously.
+     if(scan.blocked)scan.jobs.unshift(job);
+     else scan.visitedJobs.add(key);
+     if(job.type==="map"&&label==="Seite nicht gefunden")scan.failures--;
     }
    }
-  }
-  if(scan.urls.length&&(scan.jobs.length===0||scan.urls.length>40||jobsDone%3===0)){
+  }else if(scan.urls.length&&detailsDone<maxDetails){
    const batch=[];
    while(batch.length<2&&scan.urls.length){
-    const next=scan.urls.shift();
-    if(!scan.visitedUrls.has(next)){scan.visitedUrls.add(next);batch.push(next);}
+    const url=scan.urls.shift();
+    if(!scan.visitedUrls.has(url)){batch.push(url);scan.visitedUrls.add(url);}
    }
    if(batch.length){
+    processed++;detailsDone+=batch.length;scan.done+=batch.length;
     try{
-     const result=await api(shop.url,"batch",{urls:batch});
-     for(const p of result.products||[])mergeItem(scan.items,p);
-     scan.failures+=(result.errors||[]).filter(e=>!/Kategorie/i.test(e.reason||"")).length;
-     scan.other+=(result.errors||[]).length;
+     const response=await api(shop.url,"batch",{urls:batch});
+     for(const product of response.products||[])mergeItem(scan.items,product);
+     for(const failure of response.errors||[]){
+      if(/Kategorie|Bodenbelag/i.test(failure.reason||"")){scan.other++;continue;}
+      const label=fail(failure.reason||"Produkt nicht abrufbar","detail");
+      if(scan.blocked){scan.urls.unshift(failure.url);scan.visitedUrls.delete(failure.url);}
+      else if(label==="Seite nicht gefunden")scan.failures--;
+     }
     }catch(e){
-      scan.failures+=batch.length;
-      if(examples.length<3)examples.push("Produktseiten: "+e.message);
+     fail(e,"detail");
+     if(scan.blocked)for(const url of batch.reverse()){
+      scan.urls.unshift(url);scan.visitedUrls.delete(url);
+     }
     }
-    detailsDone+=batch.length;scan.done+=batch.length;
-    await delay(190);
+    await delay(250);
    }
-  }
-  status();
-  if((jobsDone+detailsDone)%8===0)scanStats(shop,scan);
- }
- if([...scan.items.values()].filter(p=>p.price!=null&&Number.isFinite(p.price)).length<3 || scan.failures>0&&scan.items.size<4){
-  const legacy=await legacyFallback(shop,scan);
-  if(legacy.checked){
-   if(legacy.found)examples.push("Ersatzabruf: "+legacy.found+" zusätzliche Artikel");
-   else if(legacy.errors?.length)examples.push("Ersatzabruf: "+legacy.errors[0]);
-  }
+  }else break;
+  progress();
+  if(processed%8===0)scanStats(shop,scan);
  }
  scanStats(shop,scan);
- if(examples.length)el("progress").textContent=label()+" · Hinweise: "+examples.slice(0,3).join(" | ");
- return {complete:!scan.jobs.length&&!scan.urls.length,
-  count:scan.items.size,priced:[...scan.items.values()].filter(p=>p.price!=null).length,
-  remaining:scan.jobs.length+scan.urls.length,failed:scan.failures,
-  diagnostic:examples.slice(0,3).join(" | ")};
+ progress();
+ const priced=[...scan.items.values()].filter(validPrice).length;
+ const remaining=scan.jobs.length+scan.urls.length;
+ return {complete:remaining===0&&!scan.truncated&&scan.failures===0,
+  count:scan.items.size,priced,remaining,failed:scan.failures,
+  diagnostic:scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
 async function scanAll(restart){
  if(state.busy)return;
