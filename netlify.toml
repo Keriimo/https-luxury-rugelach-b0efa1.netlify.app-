@@ -1,5 +1,5 @@
 [build]
-  command = "node --check app.js && node --check netlify/functions/catalog.js && mkdir -p dist && cp index.html app.js dist/"
+  command = "node --check app.js && node --check netlify/functions/catalog.js && npm test && mkdir -p dist && cp index.html app.js dist/"
   publish = "dist"
   functions = "netlify/functions"
 
