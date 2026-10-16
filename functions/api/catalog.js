@@ -244,12 +244,14 @@ function detail(html,site,url){
 }
 function isProduct(url){
  const path=new URL(url).pathname.toLowerCase();
+ if(/(?:teppich|nadelfilz|bioboden|korkboden|linoleum|pvc-boden|cv-belag|sockelleiste|fussleiste|fußleiste|trittschall|daemmung|dammung)/i.test(path)&&
+   !/(?:vinyl|rigid|spc|lvt|parkett|laminat)/i.test(path))return false;
  if(/\/(?:products?|produkte?|artikel|detail|items?|p)\//i.test(path))return true;
  if(/\/[^/]+\.html?$/i.test(path))return true;
  if(/\/(?:laminat|parkett|vinylboeden?|designboden|bodenbelag|zubehoer)\/[^/]{12,}/i.test(path))return true;
  // Flat SEO product routes are common in floor shops (e.g. /laminat-eiche-100013100).
  const slug=path.split("/").filter(Boolean).pop()||"";
- if(/^((?:klick|klebe)[-_]?)?(?:laminat|vinyl|parkett|designboden|bioboden|korkboden|teppichboden|pvc|bodenbelag|boden)-[a-z0-9%-]{8,}/i.test(slug)&&
+ if(/^((?:klick|klebe)[-_]?)?(?:laminat|vinyl|rigid|parkett|designboden|bodenbelag|boden)-[a-z0-9%-]{8,}/i.test(slug)&&
   /(?:[-_]\d{5,12}|[-_][a-z0-9]{6,})$/i.test(slug))return true;
  // Numeric end-of-slug article identifiers, independent of the merchant's naming style.
  if(!/\/(?:magazin|blog|ratgeber|news|presse)\//i.test(path)&&
@@ -261,10 +263,10 @@ function isCategory(url,label){
  const path=u.pathname.toLowerCase().replace(/\/+$/,"");
  const segments=path.split("/").filter(Boolean);
  if(segments.length>3)return false;
- const cat=/(?:^|[-_/])(?:alleboeden|alle-boeden|alle-produkte|laminat|vinylboeden|vinylboden|parkett|bodenbelaege|bodenbelage|boeden|böden|designboden|bioboeden|bioboden|kork|zubehoer|zubehör|teppichboden|angebote|bodenoutlet|sale)(?:$|[-_/])/i;
+ const cat=/(?:^|[-_/])(?:alleboeden|alle-boeden|alle-produkte|laminat|vinylboeden|vinylboden|rigid|rigid-vinyl|parkett|bodenbelaege|bodenbelage|boeden|böden|designboden|angebote|bodenoutlet|sale)(?:$|[-_/])/i;
  if(cat.test(path)&&!isProduct(url))return true;
  if(/\/collections\/[^/]+$/i.test(path))return true;
- if(segments.length<=2&&/^(?:laminat|vinylböden?|vinylboden|parkett|bioboden|alle böden|alle produkte|zubehör|teppich|bodenbeläge|angebote|sale)$/i.test(clean(label)))return true;
+ if(segments.length<=2&&/^(?:laminat|vinylböden?|vinylboden|rigid-vinyl|parkett|alle böden|alle produkte|bodenbeläge|angebote|sale)$/i.test(clean(label)))return true;
  return false;
 }
 function listingProduct(href,label){
