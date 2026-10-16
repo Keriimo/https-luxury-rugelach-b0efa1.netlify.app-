@@ -58,7 +58,7 @@ const STANDARD_STYLE={
  subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²",
  overview:"Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m². Ohne nachgewiesenen Preis zeigen wir klar „Preis fehlt“.",
  tabProducts:"Alle Produkte",tabCompare:"Preisradar & Produktvergleich",
- accent:"#e5233f",hero:"#15233a",background:"#f2f4f7",ink:"#17243a",logo:""
+ accent:"#e5233f",hero:"#15233a",background:"#f2f4f7",ink:"#17243a",card:"#ffffff",border:"#e1e6ef",font:"system",fontSize:"14",density:"normal",radius:"12",width:"1320",shadow:"soft",logo:""
 };
 let appearance={...STANDARD_STYLE},pendingLogo=null;
 const isColor=v=>typeof v==="string"&&/^#[0-9a-f]{6}$/i.test(v);
@@ -71,8 +71,16 @@ function validateAppearance(saved){
  for(const [key,limit]of Object.entries(lengths)){
   if(typeof saved[key]==="string"&&saved[key].trim())next[key]=saved[key].trim().slice(0,limit);
  }
- for(const key of ["accent","hero","background","ink"])
+ for(const key of ["accent","hero","background","ink","card","border"])
   if(isColor(saved[key]))next[key]=saved[key].toLowerCase();
+ for(const [key,allowed] of Object.entries({
+  font:["system","arial","georgia","verdana"],
+  fontSize:["13","14","16","18"],
+  density:["compact","normal","relaxed"],
+  radius:["4","12","20","28"],
+  width:["1020","1320","1600","1920"],
+  shadow:["soft","flat","strong"]
+ })){if(allowed.includes(String(saved[key])))next[key]=String(saved[key]);}
  if(isLogo(saved.logo))next.logo=saved.logo;
  if(/bioboden|teppich|pvc|zubehör|sockelleisten|fußleisten/i.test(next.subtitle))
   next.subtitle=STANDARD_STYLE.subtitle;
@@ -88,6 +96,19 @@ function updateAppearance(){
  document.documentElement.style.setProperty("--hero",appearance.hero);
  document.documentElement.style.setProperty("--base",appearance.background);
  document.documentElement.style.setProperty("--ink",appearance.ink);
+ document.documentElement.style.setProperty("--surface",appearance.card);
+ document.documentElement.style.setProperty("--border",appearance.border);
+ const fonts={system:'system-ui,-apple-system,"Segoe UI",Arial,sans-serif',
+  arial:"Arial,Helvetica,sans-serif",georgia:"Georgia,serif",
+  verdana:"Verdana,Geneva,sans-serif"};
+ const densities={compact:"12px",normal:"20px",relaxed:"28px"};
+ const shadows={flat:"none",soft:"0 2px 8px rgba(24,35,56,.025)",
+  strong:"0 8px 28px rgba(21,35,58,.13)"};
+ for(const [variable,value]of [
+  ["--font",fonts[appearance.font]],["--font-size",appearance.fontSize+"px"],
+  ["--radius",appearance.radius+"px"],["--padding",densities[appearance.density]],
+  ["--page-width",appearance.width+"px"],["--shadow",shadows[appearance.shadow]]
+ ])document.documentElement.style.setProperty(variable,value);
  el("brandLabel").textContent=appearance.brand;
  el("pageHeading").textContent=appearance.title;
  el("pageSubtitle").textContent=appearance.subtitle;
@@ -99,7 +120,11 @@ function updateAppearance(){
   ["editorSubtitle","subtitle"],["editorOverviewText","overview"],
   ["editorTabProducts","tabProducts"],["editorTabCompare","tabCompare"],
   ["editorAccent","accent"],["editorTheme","hero"],
-  ["editorBackground","background"],["editorTextColor","ink"]]){
+  ["editorBackground","background"],["editorTextColor","ink"],
+  ["editorCardColor","card"],["editorBorderColor","border"],
+  ["editorFont","font"],["editorFontSize","fontSize"],
+  ["editorDensity","density"],["editorRadius","radius"],
+  ["editorWidth","width"],["editorCards","shadow"]]){
   el(id).value=appearance[key];
  }
  const logo=el("brandLogo"),preview=el("editorLogoPreview");
@@ -113,7 +138,7 @@ function updateAppearance(){
  const luminance=(rgb[0]*299+rgb[1]*587+rgb[2]*114)/1000;
  el("hero").classList.toggle("light",luminance>=165);
 }
-function saveAppearance(){
+function appearanceFromEditor(){
  const fields={
   brand:neat(el("editorBrand").value).slice(0,65),
   title:neat(el("editorTitle").value).slice(0,80),
@@ -122,18 +147,65 @@ function saveAppearance(){
   tabProducts:neat(el("editorTabProducts").value).slice(0,36),
   tabCompare:neat(el("editorTabCompare").value).slice(0,36)
  };
- if(!fields.brand||!fields.title){setStatus("Markenzeile und Überschrift dürfen nicht leer sein.","warning");return;}
- const next=validateAppearance({...appearance,...fields,
+ if(!fields.brand||!fields.title)return null;
+ return validateAppearance({...appearance,...fields,
   accent:el("editorAccent").value,hero:el("editorTheme").value,
   background:el("editorBackground").value,ink:el("editorTextColor").value,
+  card:el("editorCardColor").value,border:el("editorBorderColor").value,
+  font:el("editorFont").value,fontSize:el("editorFontSize").value,
+  density:el("editorDensity").value,radius:el("editorRadius").value,
+  width:el("editorWidth").value,shadow:el("editorCards").value,
   logo:pendingLogo===null?appearance.logo:pendingLogo
  });
+}
+function saveAppearance(){
+ const next=appearanceFromEditor();
+ if(!next){setStatus("Markenzeile und Überschrift dürfen nicht leer sein.","warning");return;}
  try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(next));}
  catch(e){setStatus("Design zu groß für den Browserspeicher. Bitte ein kleineres Logo wählen.","warning");return;}
  appearance=next;pendingLogo=null;updateAppearance();
  el("appearancePanel").hidden=true;
- setStatus("Design gespeichert – der Scanner und die Produktdaten sind unverändert.","ok");
+ setStatus("Design gespeichert. Scanner und Produktdaten bleiben unverändert.","ok");
 }
+function previewAppearance(){
+ const next=appearanceFromEditor();
+ if(!next){setStatus("Bitte eine Überschrift und Markenzeile eingeben.","warning");return;}
+ appearance=next;updateAppearance();
+ setStatus("Vorschau angewendet. Zum dauerhaften Speichern auf „Design speichern“ klicken.","normal");
+}
+const DESIGN_PRESETS={
+ depot:{accent:"#e5233f",hero:"#15233a",background:"#f2f4f7",ink:"#17243a",card:"#ffffff",border:"#e1e6ef"},
+ midnight:{accent:"#4093f5",hero:"#101b30",background:"#edf2fb",ink:"#132944",card:"#ffffff",border:"#c9d6ea"},
+ light:{accent:"#c82e45",hero:"#ffffff",background:"#ffffff",ink:"#252525",card:"#ffffff",border:"#dddddd"},
+ forest:{accent:"#18845a",hero:"#162f2a",background:"#edf5ef",ink:"#18372f",card:"#ffffff",border:"#b9d9c5"}
+};
+function selectDesignPreset(){
+ const selected=DESIGN_PRESETS[el("editorPreset").value];
+ if(!selected)return;
+ for(const [key,value] of Object.entries(selected)){
+  const id={accent:"editorAccent",hero:"editorTheme",
+   background:"editorBackground",ink:"editorTextColor",
+   card:"editorCardColor",border:"editorBorderColor"}[key];
+  el(id).value=value;
+ }
+ setStatus("Designvorlage gewählt. Mit „Vorschau anzeigen“ ansehen oder direkt speichern.","normal");
+}
+function removeLogoNow(){
+ // Unlike the old two-stage removal, this persists IMMEDIATELY and does not
+ // require a second "Design speichern" click.
+ const next={...appearance,logo:""};
+ try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(next));}
+ catch(e){setStatus("Logo konnte nicht gespeichert entfernt werden. Browserspeicher prüfen.","warning");return;}
+ appearance=next;pendingLogo=null;
+ for(const id of ["brandLogo","editorLogoPreview"]){
+  const img=el(id);img.hidden=true;
+  if(typeof img.removeAttribute==="function")img.removeAttribute("src");
+  else img.src="";
+ }
+ el("editorLogo").value="";
+ setStatus("Logo dauerhaft entfernt – auch nach erneutem Laden. Kein zusätzliches Speichern nötig.","ok");
+}
+
 function previewLogo(){
  const image=pendingLogo===null?appearance.logo:pendingLogo;
  const preview=el("editorLogoPreview");
@@ -374,7 +446,16 @@ function hasComparablePrice(a,b){
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
 const SUPPORTED_CATEGORIES=PRICE_CATEGORIES;
-const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
+const ACCESSORY_IN_TITLE=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|trittschall|unterlage|unterboden|wärmedämmung|waermedaemmung|isoliermatte|fußleisten?|fussleisten?|sockelleisten?|kleber|reiniger|abschlussprofil|übergangsprofil|uebergangsprofil|pflegeprodukt|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i;
+const FLOOR_TITLE_FIRST=/^(?:(?:klick|klebe)[-\s]?)?(?:laminat(?:boden)?|vinyl(?:boden)?|rigid[-\s]?vinyl|parkett|designboden|spc[-\s]?boden|lvt[-\s]?boden)\b/i;
+function looksLikeFloorProduct(p){
+ const name=String(p?.name||"").toLowerCase();
+ if(!name)return false;
+ if(!ACCESSORY_IN_TITLE.test(name))return true;
+ return FLOOR_TITLE_FIRST.test(name)&&
+  /(?:\bmit\b|\binklusive\b|\binkl\.|\binkl\b|\bintegrierter?\b|\binkludiert\b)/i.test(name);
+}
+const isFloor=p=>Boolean(p&&PRICE_CATEGORIES.includes(p.category)&&looksLikeFloorProduct(p));
 const isSupported=isFloor;
 const normalizedItem=p=>p;
 
@@ -808,7 +889,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:8,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:9,lastScanAt:new Date().toISOString(),pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -835,7 +916,7 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==8)saved=null;
+ if(saved&&saved.engineVersion!==9)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
@@ -994,11 +1075,114 @@ async function scanShop(shop,restart,quick=false){
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
-async function scanAll(restart,deep=false,full=false){
+const AUTO_KEY="marktradar:auto:v1";
+const AUTO_LEASE_KEY="marktradar:auto:lease:v1";
+let autoSettings={enabled:true,minutes:30,lastStartedAt:0};
+const AUTO_MINUTES=[30,60,180];
+function readAutoSettings(){
+ try{
+  const previous=JSON.parse(localStorage.getItem(AUTO_KEY)||"null");
+  if(previous&&typeof previous==="object"){
+   autoSettings.enabled=previous.enabled!==false;
+   const minutes=Number(previous.minutes);
+   if(AUTO_MINUTES.includes(minutes))autoSettings.minutes=minutes;
+   if(Number.isFinite(previous.lastStartedAt)&&previous.lastStartedAt>=0)
+    autoSettings.lastStartedAt=previous.lastStartedAt;
+  }
+ }catch(e){}
+ el("autoScanEnabled").checked=autoSettings.enabled;
+ el("autoScanInterval").value=String(autoSettings.minutes);
+ updateAutoScanStatus();
+}
+function storeAutoSettings(){
+ try{localStorage.setItem(AUTO_KEY,JSON.stringify(autoSettings));return true;}
+ catch(e){setStatus("Automatik-Einstellungen können nicht gespeichert werden. Browser-Speicher prüfen.","warning");return false;}
+}
+function markAutoRunStarted(){
+ autoSettings.lastStartedAt=Date.now();
+ storeAutoSettings();
+ updateAutoScanStatus();
+}
+function shopDueForAuto(shop,at=Date.now()){
+ if(!shop?.active)return false;
+ const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
+ const checkedAt=Date.parse(shop.scan?.lastScanAt||"");
+ const elapsed=Number.isFinite(checkedAt)?at-checkedAt:Infinity;
+ // Freshly blocked requests are not retried on every timer tick.
+ if(shop.scan?.blocked&&elapsed<3*60*60*1000)return false;
+ return pending>0||elapsed>=24*60*60*1000;
+}
+function updateAutoScanStatus(){
+ const status=el("autoScanState");
+ if(!autoSettings.enabled){status.textContent="Ausgeschaltet";return;}
+ if(state.busy){status.textContent="Prüfung läuft";return;}
+ if(remainingRequests()<6){status.textContent="Tagesbudget erreicht";return;}
+ const hasWork=state.shops.some(shop=>shopDueForAuto(shop));
+ if(!hasWork){status.textContent="Katalog aktuell · später erneut";return;}
+ const wait=Math.max(0,autoSettings.minutes*60000-(Date.now()-autoSettings.lastStartedAt));
+ status.textContent=wait>0?"Nächste Prüfung in ca. "+Math.ceil(wait/60000)+" Min":"Nächste Prüfung bereit";
+}
+function ownsAutoLease(token){
+ try{
+  const stored=JSON.parse(localStorage.getItem(AUTO_LEASE_KEY)||"null");
+  return stored?.token===token;
+ }catch(e){return false;}
+}
+async function maybeAutoScan(){
+ updateAutoScanStatus();
+ if(!autoSettings.enabled||state.busy||remainingRequests()<6||
+    (typeof document.visibilityState==="string"&&document.visibilityState==="hidden"))return false;
+ if(Date.now()-autoSettings.lastStartedAt<autoSettings.minutes*60000)return false;
+ if(!state.shops.some(shop=>shopDueForAuto(shop)))return false;
+ // Cooperative cross-tab lease. Auto scans last at most 3.5 minutes.
+ const token=String(Date.now())+":"+Math.random().toString(36).slice(2);
+ try{
+  const lease=JSON.parse(localStorage.getItem(AUTO_LEASE_KEY)||"null");
+  if(lease&&lease.until>Date.now())return false;
+  localStorage.setItem(AUTO_LEASE_KEY,JSON.stringify({token,until:Date.now()+5*60000}));
+  if(!ownsAutoLease(token))return false;
+ }catch(e){return false;}
+ markAutoRunStarted();
+ try{await scanAll(false,true,false,true);return true;}
+ finally{
+  if(ownsAutoLease(token)){
+   try{localStorage.removeItem(AUTO_LEASE_KEY);}catch(e){}
+  }
+  updateAutoScanStatus();
+ }
+}
+function changeAutoSettings(){
+ autoSettings.enabled=Boolean(el("autoScanEnabled").checked);
+ const interval=Number(el("autoScanInterval").value);
+ autoSettings.minutes=AUTO_MINUTES.includes(interval)?interval:30;
+ storeAutoSettings();updateAutoScanStatus();
+ if(autoSettings.enabled&&typeof window.setTimeout==="function")
+  window.setTimeout(()=>{void maybeAutoScan();},1000);
+}
+function initializeAutoScan(){
+ readAutoSettings();
+ el("autoScanEnabled").onchange=changeAutoSettings;
+ el("autoScanInterval").onchange=changeAutoSettings;
+ if(typeof window.setInterval==="function"){
+  window.setInterval(()=>{void maybeAutoScan();},60000);
+  if(typeof window.setTimeout==="function")window.setTimeout(()=>{void maybeAutoScan();},3000);
+ }
+ if(typeof window.addEventListener==="function")
+  window.addEventListener("focus",()=>{void maybeAutoScan();});
+ if(typeof document.addEventListener==="function")
+  document.addEventListener("visibilitychange",()=>{
+   if(document.visibilityState==="visible")void maybeAutoScan();
+  });
+}
+async function scanAll(restart,deep=false,full=false,autoRun=false){
  if(state.busy)return;
- const shops=state.shops.filter(shop=>shop.active);
- if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
+ const shops=state.shops.filter(shop=>shop.active&&(!autoRun||shopDueForAuto(shop)));
+ if(!shops.length){
+  if(!autoRun)setStatus("Bitte mindestens einen Shop auswählen.","warning");
+  updateAutoScanStatus();return;
+ }
  state.busy=true;state.stopRequested=false;renderShops();el("progress").hidden=false;
+ if(!autoRun)markAutoRunStarted();
  const outcomes=new Map();
  const completed=new Set();
  const rounds=full?120:deep?12:1;
@@ -1038,7 +1222,7 @@ async function scanAll(restart,deep=false,full=false){
   }
   setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
    ". Offene Aufgaben mit „Scan vertiefen / fortsetzen“ erneut prüfen. Produktpreise vor Vertriebsaussagen kontrollieren.","normal");
- }finally{state.busy=false;state.stopRequested=false;renderShops();render();}
+ }finally{state.busy=false;state.stopRequested=false;renderShops();render();updateAutoScanStatus();}
 }
 
 function downloadJson(){
@@ -1069,8 +1253,10 @@ restore();
 loadAppearance();
 el("appearanceButton").onclick=()=>{el("appearancePanel").hidden=!el("appearancePanel").hidden;};
 el("editorSave").onclick=saveAppearance;
+el("editorPreview").onclick=previewAppearance;
+el("editorPreset").onchange=selectDesignPreset;
 el("editorLogo").onchange=uploadLogo;
-el("removeLogo").onclick=()=>{pendingLogo="";previewLogo();setStatus("Logo zum Entfernen vorgemerkt. Bitte Design speichern.","normal");};
+el("removeLogo").onclick=removeLogoNow;
 el("editorExport").onclick=exportAppearance;
 el("editorImport").onchange=importAppearance;
 el("editorReset").onclick=()=>{
@@ -1129,5 +1315,5 @@ for(const [id,t] of [["productsTab","products"],["comparisonTab","comparison"],[
  el(id).onclick=()=>{state.tab=t;save();render();};
 }
 renderShops();render();
-void restoreFullDatabase();
+void restoreFullDatabase().then(initializeAutoScan,initializeAutoScan);
 })();
