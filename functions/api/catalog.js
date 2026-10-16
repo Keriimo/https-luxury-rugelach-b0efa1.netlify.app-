@@ -118,32 +118,46 @@ function attrs(text,name){
   skirting:/inklusive\s+(?:fuß|fuss|sockel)leiste/i.test(t)};
 }
 function meterPrice(text,structured,pack){
- const t=clean(text).slice(0,7000);
- const matches=[
-  /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–\-\s]*(\d{1,4}(?:[,.]\d{2}))\s*€/i,
-  /(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/i,
-  /(?:m²|m2|qm)\s*[:|]\s*(\d{1,4}(?:[,.]\d{2}))\s*€/i
+ const t=clean(text).slice(0,8500);
+ const patterns=[
+  /(?:Aktionspreis|Angebotspreis|Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–\-\s]*(\d{1,4}(?:[,.]\d{2}))\s*€/gi,
+  /(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi,
+  /(?:m²|m2|qm)\s*[:|]\s*(\d{1,4}(?:[,.]\d{2}))\s*€/gi
  ];
- let price=null,unit="m²",priceSource=null;
- for(const reg of matches){
-  const m=t.match(reg);
-  if(m&&number(m[1])&&number(m[1])<2500){
-   price=number(m[1]);priceSource="ausgewiesener €/m²-Preis";break;
+ const valid=[];
+ for(const regex of patterns){
+  for(const match of t.matchAll(regex)){
+   const context=t.slice(Math.max(0,match.index-45),match.index);
+   // Old prices, savings and "from" prices are not confirmed current offers.
+   if(/(?:statt|uvp|alter\s+preis|ersparnis|du\s+sparst|gespart|ab)\s*:?\s*$/i.test(context))continue;
+   const candidate=number(match[1]);
+   if(candidate&&candidate<2500)valid.push({price:candidate,at:match.index});
   }
  }
+ valid.sort((a,b)=>a.at-b.at);
+ let price=valid[0]?.price??null,unit="m²",priceSource=price!==null?"ausgewiesener €/m²-Preis":null;
  if(price===null&&structured?.offers){
   const offers=Array.isArray(structured.offers)?structured.offers:[structured.offers];
-  const offer=offers[0]||{};
-  const n=number(offer.price||offer.lowPrice||offer.priceSpecification?.price);
-  const u=clean(offer.priceSpecification?.unitCode||offer.priceSpecification?.unitText||"");
-  if(n&&/^(MTK|m2|m²|qm)$/i.test(u)){price=n;priceSource="strukturierter Quadratmeterpreis";}
-  else if(n&&pack&&pack>=0.1&&pack<=15){price=Math.round(n/pack*100)/100;priceSource="Paketpreis durch Paketfläche";}
-  else if(n&&/^(C62|PCE|Stück)$/i.test(u)&&typeOf(t)==="Zubehör"){
-   price=n;unit="Stück";priceSource="strukturierter Stückpreis";
+  const offer=offers.find(o=>o&&typeof o==="object"&&
+    number(o.price||o.lowPrice||o.priceSpecification?.price))||{};
+  const amount=number(offer.price||offer.lowPrice||offer.priceSpecification?.price);
+  const unitLabel=clean(offer.priceSpecification?.unitCode||offer.priceSpecification?.unitText||"");
+  if(amount&&/^(MTK|m2|m²|qm)$/i.test(unitLabel)){
+   price=amount;priceSource="strukturierter Quadratmeterpreis";
+  }else if(amount&&pack&&pack>=0.1&&pack<=15){
+   price=Math.round(amount/pack*100)/100;priceSource="Paketpreis durch Paketfläche";
+  }else if(amount&&/^(C62|PCE|Stück)$/i.test(unitLabel)&&typeOf(t)==="Zubehör"){
+   price=amount;unit="Stück";priceSource="strukturierter Stückpreis";
   }
  }
- const isPromo=/(Aktionspreis|Angebotspreis|\bRabatt\b|\breduziert\b|\bRestposten\b)/i.test(t.slice(0,700));
- return {price,unit,priceSource,oldPrice:null,discountPct:null,promotion:isPromo?"Aktionshinweis":""};
+ // Compare old and current prices only when the reference explicitly shares the same unit.
+ const oldMatch=unit==="m²"?t.match(/(?:UVP|statt|alter\s+preis)\s*:?\s*(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|pro)\s*(?:m²|m2|qm)/i):null;
+ const oldCandidate=oldMatch?number(oldMatch[1]):null;
+ const oldPrice=price!==null&&oldCandidate>price?oldCandidate:null;
+ const discountPct=oldPrice?Math.round((1-price/oldPrice)*100):null;
+ const promoText=/(Aktionspreis|Angebotspreis|\bRabatt\b|\breduziert\b|\bRestposten\b)/i.test(t.slice(0,700));
+ const promotion=promoText?"Aktionshinweis":oldPrice?"Ausgewiesener Vergleichspreis":"";
+ return {price,unit,priceSource,oldPrice,discountPct,promotion};
 }
 function productJson(html){
  const scripts=html.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi)||[];
