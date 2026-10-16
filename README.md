@@ -1,4 +1,15 @@
-# MarktRadar 5.6 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.7 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.7 – Transparenter Vergleich, Shop-Mix & Designstudio
+
+- **Nur Bodenbeläge:** Laminat, Vinyl/Rigid-Vinyl und Parkett. Fuß-/Sockelleisten und sämtliches andere Zubehör sind wieder vollständig aus Scan, Filtern und Dashboard entfernt. Bereits gespeicherte Rohdaten bleiben im Browser erhalten, damit kein unbeabsichtigter Datenverlust entsteht.
+- **Preisradar zeigt alle aktiven Shops:** Ein Shop ohne automatisch erkannte €/m²-Preise (z. B. Laminat DEPOT) wird **nicht ausgeblendet**. Stattdessen zeigt die jeweilige Zelle die Produktanzahl, „Noch kein geprüfter €/m²-Preis“ und einen Originalprodukt-Link. Technisch unterschiedliche Kategorie-Bestpreise werden nicht als direkte Gleichwertigkeit ausgegeben.
+- **Direkter 2-Produkte-Vergleich:** Separate Shopauswahl links/rechts mit Suchfeldern und Artikelwählern; auch Produkte ohne Preise können nebeneinander anhand der vorhandenen technischen Eigenschaften geprüft werden.
+- **Preis nach Originalprüfung ergänzen:** Pro Artikel kann der Nutzer nach Öffnen des Originalshops einen überprüften €/m²-Preis per Dialog eintragen. Der Eintrag ist als manuell markiert, wird datiert im bisherigen Browser-Katalog `marktradar:catalog:v3` gespeichert und ist eine **Angabe des Nutzers**, keine Bestätigung durch den automatischen Scanner. Ungültige/abgebrochene Eingaben werden nicht übernommen.
+- **Shop-Mix Standard:** Die ersten Treffer in „Alle Produkte“ wechseln zwischen aktiven Shops, damit Anbieter ohne maschinell erkannte Preise nicht hinter allen Artikeln anderer Anbieter verschwinden. „Günstigste zuerst“ bleibt als auswählbare Sortierung verfügbar.
+- **Designstudio:** Individuelle Überschrift, Markenzeile, Untertitel, Beschreibung der Preisübersicht, Reitertexte, vier benutzerdefinierte Farben und ein eigenes **PNG/JPG/WebP-Logo bis 200 KB**. Speicherung erfolgt ausschließlich in diesem Browser, unabhängig vom Scanner. Design per JSON exportieren/importieren, um es ohne Benutzerkonto auf einem anderen Gerät zu verwenden.
+- **Weiterhin unverändert:** Cloudflare Worker-Route `/api/catalog`, Cloudflare-Gratisbetrieb, bestehende Shop-URLs und Browser-Datenbank-Schema. Vollständige Live-Abdeckung beider Shops und fehlerfreie automatische €/m²-Erkennung können ohne erfolgreich ausgeführten Live-Scan nicht zugesichert werden.
+
 
 ## MarktRadar 5.6 – Bodenbeläge und Fuß-/Sockelleisten
 
