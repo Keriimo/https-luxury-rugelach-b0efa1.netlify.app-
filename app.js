@@ -889,7 +889,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:9,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:9,lastScanAt:new Date().toISOString(),pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -1075,11 +1075,114 @@ async function scanShop(shop,restart,quick=false){
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
-async function scanAll(restart,deep=false,full=false){
+const AUTO_KEY="marktradar:auto:v1";
+const AUTO_LEASE_KEY="marktradar:auto:lease:v1";
+let autoSettings={enabled:true,minutes:30,lastStartedAt:0};
+const AUTO_MINUTES=[30,60,180];
+function readAutoSettings(){
+ try{
+  const previous=JSON.parse(localStorage.getItem(AUTO_KEY)||"null");
+  if(previous&&typeof previous==="object"){
+   autoSettings.enabled=previous.enabled!==false;
+   const minutes=Number(previous.minutes);
+   if(AUTO_MINUTES.includes(minutes))autoSettings.minutes=minutes;
+   if(Number.isFinite(previous.lastStartedAt)&&previous.lastStartedAt>=0)
+    autoSettings.lastStartedAt=previous.lastStartedAt;
+  }
+ }catch(e){}
+ el("autoScanEnabled").checked=autoSettings.enabled;
+ el("autoScanInterval").value=String(autoSettings.minutes);
+ updateAutoScanStatus();
+}
+function storeAutoSettings(){
+ try{localStorage.setItem(AUTO_KEY,JSON.stringify(autoSettings));return true;}
+ catch(e){setStatus("Automatik-Einstellungen können nicht gespeichert werden. Browser-Speicher prüfen.","warning");return false;}
+}
+function markAutoRunStarted(){
+ autoSettings.lastStartedAt=Date.now();
+ storeAutoSettings();
+ updateAutoScanStatus();
+}
+function shopDueForAuto(shop,at=Date.now()){
+ if(!shop?.active)return false;
+ const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
+ const checkedAt=Date.parse(shop.scan?.lastScanAt||"");
+ const elapsed=Number.isFinite(checkedAt)?at-checkedAt:Infinity;
+ // Freshly blocked requests are not retried on every timer tick.
+ if(shop.scan?.blocked&&elapsed<3*60*60*1000)return false;
+ return pending>0||elapsed>=24*60*60*1000;
+}
+function updateAutoScanStatus(){
+ const status=el("autoScanState");
+ if(!autoSettings.enabled){status.textContent="Ausgeschaltet";return;}
+ if(state.busy){status.textContent="Prüfung läuft";return;}
+ if(remainingRequests()<6){status.textContent="Tagesbudget erreicht";return;}
+ const hasWork=state.shops.some(shop=>shopDueForAuto(shop));
+ if(!hasWork){status.textContent="Katalog aktuell · später erneut";return;}
+ const wait=Math.max(0,autoSettings.minutes*60000-(Date.now()-autoSettings.lastStartedAt));
+ status.textContent=wait>0?"Nächste Prüfung in ca. "+Math.ceil(wait/60000)+" Min":"Nächste Prüfung bereit";
+}
+function ownsAutoLease(token){
+ try{
+  const stored=JSON.parse(localStorage.getItem(AUTO_LEASE_KEY)||"null");
+  return stored?.token===token;
+ }catch(e){return false;}
+}
+async function maybeAutoScan(){
+ updateAutoScanStatus();
+ if(!autoSettings.enabled||state.busy||remainingRequests()<6||
+    (typeof document.visibilityState==="string"&&document.visibilityState==="hidden"))return false;
+ if(Date.now()-autoSettings.lastStartedAt<autoSettings.minutes*60000)return false;
+ if(!state.shops.some(shop=>shopDueForAuto(shop)))return false;
+ // Cooperative cross-tab lease. Auto scans last at most 3.5 minutes.
+ const token=String(Date.now())+":"+Math.random().toString(36).slice(2);
+ try{
+  const lease=JSON.parse(localStorage.getItem(AUTO_LEASE_KEY)||"null");
+  if(lease&&lease.until>Date.now())return false;
+  localStorage.setItem(AUTO_LEASE_KEY,JSON.stringify({token,until:Date.now()+5*60000}));
+  if(!ownsAutoLease(token))return false;
+ }catch(e){return false;}
+ markAutoRunStarted();
+ try{await scanAll(false,true,false,true);return true;}
+ finally{
+  if(ownsAutoLease(token)){
+   try{localStorage.removeItem(AUTO_LEASE_KEY);}catch(e){}
+  }
+  updateAutoScanStatus();
+ }
+}
+function changeAutoSettings(){
+ autoSettings.enabled=Boolean(el("autoScanEnabled").checked);
+ const interval=Number(el("autoScanInterval").value);
+ autoSettings.minutes=AUTO_MINUTES.includes(interval)?interval:30;
+ storeAutoSettings();updateAutoScanStatus();
+ if(autoSettings.enabled&&typeof window.setTimeout==="function")
+  window.setTimeout(()=>{void maybeAutoScan();},1000);
+}
+function initializeAutoScan(){
+ readAutoSettings();
+ el("autoScanEnabled").onchange=changeAutoSettings;
+ el("autoScanInterval").onchange=changeAutoSettings;
+ if(typeof window.setInterval==="function"){
+  window.setInterval(()=>{void maybeAutoScan();},60000);
+  if(typeof window.setTimeout==="function")window.setTimeout(()=>{void maybeAutoScan();},3000);
+ }
+ if(typeof window.addEventListener==="function")
+  window.addEventListener("focus",()=>{void maybeAutoScan();});
+ if(typeof document.addEventListener==="function")
+  document.addEventListener("visibilitychange",()=>{
+   if(document.visibilityState==="visible")void maybeAutoScan();
+  });
+}
+async function scanAll(restart,deep=false,full=false,autoRun=false){
  if(state.busy)return;
- const shops=state.shops.filter(shop=>shop.active);
- if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
+ const shops=state.shops.filter(shop=>shop.active&&(!autoRun||shopDueForAuto(shop)));
+ if(!shops.length){
+  if(!autoRun)setStatus("Bitte mindestens einen Shop auswählen.","warning");
+  updateAutoScanStatus();return;
+ }
  state.busy=true;state.stopRequested=false;renderShops();el("progress").hidden=false;
+ if(!autoRun)markAutoRunStarted();
  const outcomes=new Map();
  const completed=new Set();
  const rounds=full?120:deep?12:1;
@@ -1119,7 +1222,7 @@ async function scanAll(restart,deep=false,full=false){
   }
   setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
    ". Offene Aufgaben mit „Scan vertiefen / fortsetzen“ erneut prüfen. Produktpreise vor Vertriebsaussagen kontrollieren.","normal");
- }finally{state.busy=false;state.stopRequested=false;renderShops();render();}
+ }finally{state.busy=false;state.stopRequested=false;renderShops();render();updateAutoScanStatus();}
 }
 
 function downloadJson(){
@@ -1212,5 +1315,5 @@ for(const [id,t] of [["productsTab","products"],["comparisonTab","comparison"],[
  el(id).onclick=()=>{state.tab=t;save();render();};
 }
 renderShops();render();
-void restoreFullDatabase();
+void restoreFullDatabase().then(initializeAutoScan,initializeAutoScan);
 })();
