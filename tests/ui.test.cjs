@@ -43,7 +43,7 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance};})();');
  new Function("document","window","localStorage","navigator",exposed)(
   document,window,localStorage,{clipboard:{}});
  return {window,state:window.__marketRadarTest.state,api:window.__marketRadarTest,
@@ -164,7 +164,7 @@ test("Browser full scan is bounded, resumable and supports stopping",()=>{
  assert.equal(app.state.stopRequested,true);
 });
 test("Unpriced saved products will be revisited in scanner v5",()=>{
- assert.match(source,/previous\.filter\(p=>p\?\.url&&isFloor\(p\)&&!validPrice\(p\)\)/);
+ assert.match(source,/previous\.filter\(p=>p\?\.url&&isSupported\(p\)&&!priceAvailable\(normalizedItem\(p\)\)\)/);
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
  assert.match(source,/if\(saved&&saved\.engineVersion!==7\)saved=null/);
 });
@@ -250,4 +250,31 @@ test("Unsupported old skirting data remains archived but is absent in visible da
  assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/9,99/);
  assert.doesNotMatch(text(app.elements.get("priceDuelHolder")),/Sockelleiste/);
  assert.equal(shop.items.length,2);
+});
+
+test("Balanced default product list contains both selected shops despite zero DEPOT prices",()=>{
+ const app=boot();
+ app.state.tab="products";app.state.sort="balanced";app.api.render();
+ const rows=app.elements.get("tableHolder").children[0].children[1].children;
+ const stringify=el=>[el.textContent||"",...(el.children||[]).map(stringify)].join(" ");
+ const two=rows.slice(0,2).map(stringify).join(" | ");
+ assert.match(two,/Laminat DEPOT/);
+ assert.match(two,/Laminat-Shop24/);
+});
+test("Chosen product on right before left does not crash manual comparison",()=>{
+ const app=boot();
+ app.state.tab="comparison";app.api.render();
+ const right=app.elements.get("compareProductB");
+ right.value="0";right.onchange();
+ assert.match(app.elements.get("manualSelectionLabel").textContent,/1 von 2/);
+ assert.equal(app.elements.get("manualComparisonHolder").children.length,1);
+});
+test("Design validation accepts a small PNG logo but rejects SVG and remote images",()=>{
+ const app=boot();
+ const check=app.api.validateAppearance;
+ const png="data:image/png;base64,iVBORw0KGgo=";
+ assert.equal(check({logo:png,accent:"#1244aa"}).logo,png);
+ assert.equal(check({logo:"data:image/svg+xml;base64,AAA"}).logo,"");
+ assert.equal(check({logo:"https://external.example/logo.png"}).logo,"");
+ assert.equal(check({accent:"var(--evil)"}).accent,"#e5233f");
 });
