@@ -400,3 +400,27 @@ test("Underlay products without Dämmung in title are still rejected",()=>{
  for(const title of names)assert.equal(x.typeOf(title),null,title);
  assert.equal(x.typeOf("Laminat Eiche 8 mm inklusive Dämmung"),"Laminat");
 });
+
+test("Laminat DEPOT chooses floor price over UVP, insulation and skirting",()=>{
+ const store=x.safeShop("https://laminatdepot.de");
+ const html='<main><h1>Laminat Kronotex Grand Eiche Titan</h1><div>Boden UVP 21,95 € 16,99 €/m² '+
+  '+ inkl. Basic Dämmung 0,99 € 0,00 €/m² + inkl. Fußleiste 3,75 € 0,00 €/m '+
+  'Komplettpreis statt 26,69 € 16,99 €/m² Du sparst 9,70 €/m² '+
+  'Paketpreis 36,21 € | Inhalt 2,131 m²</div></main>';
+ const p=x.detail(html,store,store.root+'laminat-kronotex-grand-eiche-titan-100032925');
+ assert.equal(p.price,16.99);
+ assert.equal(p.priceSource,'Bodenpreis €/m² auf Produktseite');
+});
+test("Laminat DEPOT computes package area only when directly evidenced",()=>{
+ const store=x.safeShop("https://laminatdepot.de");
+ const html='<main><h1>Laminat Eiche Natur 8 mm</h1><div>Paketpreis 37,69 € | Inhalt 2,694 m²</div></main>';
+ const p=x.detail(html,store,store.root+'laminat-eiche-natur-100032934');
+ assert.equal(p.price,13.99);
+ assert.match(p.priceSource,/Paketpreis \/ Paketfläche/);
+});
+test("Laminat DEPOT ignores free underlay when a floor price is absent",()=>{
+ const store=x.safeShop("https://laminatdepot.de");
+ const html='<main><h1>Laminat Eiche 8 mm</h1><div>inkl. Basic Dämmung 0,00 €/m²</div></main>';
+ const p=x.detail(html,store,store.root+'laminat-eiche-100032934');
+ assert.equal(p.price,null);
+});
