@@ -51,7 +51,7 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,manualCompare:[]};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[]};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
  subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · Preise pro m²",
@@ -241,6 +241,8 @@ function renderShops(){
  el("selectionCount").textContent=selected.length+" Shop"+(selected.length!==1?"s":"")+" ausgewählt";
  el("scanButton").disabled=state.busy||!selected.length;
  el("deepScanButton").disabled=state.busy||!selected.length;
+ el("fullScanButton").disabled=state.busy||!selected.length;
+ el("stopScanButton").hidden=!state.busy;
  el("resetButton").disabled=state.busy||!selected.length;
 }
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>
@@ -743,29 +745,29 @@ async function scanShop(shop,restart,quick=false){
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
-async function scanAll(restart,deep=false){
+async function scanAll(restart,deep=false,full=false){
  if(state.busy)return;
  const shops=state.shops.filter(shop=>shop.active);
  if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
- state.busy=true;renderShops();el("progress").hidden=false;
+ state.busy=true;state.stopRequested=false;renderShops();el("progress").hidden=false;
  const outcomes=new Map();
  const completed=new Set();
- const rounds=deep?12:1;
+ const rounds=full?120:deep?12:1;
  const overallStart=Date.now();
- const maxSessionMs=deep?210000:60000;
+ const maxSessionMs=full?900000:deep?210000:60000;
  try{
   // Round robin: every selected shop gets the same crawl budget per stage.
-  for(let round=0;round<rounds&&Date.now()-overallStart<maxSessionMs;round++){
+  for(let round=0;round<rounds&&Date.now()-overallStart<maxSessionMs&&!state.stopRequested;round++){
    for(const shop of shops){
-    if(Date.now()-overallStart>=maxSessionMs)break;
+    if(Date.now()-overallStart>=maxSessionMs||state.stopRequested)break;
     if(completed.has(shop.id))continue;
     if(remainingRequests()<6){
      outcomes.set(shop.id,shop.name+": Tagesbudget aufgebraucht; erfasste Artikel bleiben erhalten.");
      completed.add(shop.id);continue;
     }
-    setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+
+    setStatus(shop.name+": "+(full?"Vollscan":deep?"Vertiefter Scan":"Schnellscan")+
       " · Durchgang "+(round+1)+"/"+rounds+
-      ". Für alle ausgewählten Shops gelten dieselben Scan-Grenzen.","normal");
+      ". Erfasste Daten werden laufend gespeichert. Bei Sperren und Gratisgrenzen wird pausiert.","normal");
     try{
      const result=await scanShop(shop,restart&&round===0,!deep);
      outcomes.set(shop.id,shop.name+": "+result.count+" erfasste Artikel, "+
@@ -780,10 +782,12 @@ async function scanAll(restart,deep=false){
      completed.add(shop.id);
     }
    }
+   if(full&&!completed.size)await delay(350);
+   if(completed.size===shops.length)break;
   }
   setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
    ". Offene Aufgaben mit „Scan vertiefen / fortsetzen“ erneut prüfen. Produktpreise vor Vertriebsaussagen kontrollieren.","normal");
- }finally{state.busy=false;renderShops();render();}
+ }finally{state.busy=false;state.stopRequested=false;renderShops();render();}
 }
 
 function downloadJson(){
@@ -824,6 +828,8 @@ el("diagnoseButton").onclick=runDiagnostics;
 el("addButton").onclick=addShop;
 el("scanButton").onclick=()=>scanAll(false,false);
 el("deepScanButton").onclick=()=>scanAll(false,true);
+el("fullScanButton").onclick=()=>scanAll(false,true,true);
+el("stopScanButton").onclick=()=>{state.stopRequested=true;setStatus("Scan wird nach dem aktuellen Abruf angehalten. Daten bleiben gespeichert.","normal");};
 el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true,false);}};
 el("exportButton").onclick=downloadJson;
 async function copyFilteredTable(){
