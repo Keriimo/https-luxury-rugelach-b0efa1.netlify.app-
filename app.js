@@ -54,7 +54,7 @@ const DEFAULT=[
 let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[]};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
- subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · Preise pro m²",
+ subtitle:"Laminat · Vinyl / Rigid-Vinyl · Parkett · Fuß-/Sockelleisten",
  accent:"#e5233f",hero:"#15233a"};
 let appearance={...STANDARD_STYLE};
 const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
@@ -126,7 +126,7 @@ function save(){
  pendingDatabaseWrite=raw;void flushDatabase();
  try{
   const lite=raw.length<1600000?saved:{
-   shops:state.shops.map(shop=>({...shop,items:shop.items.filter(p=>["Laminat","Vinyl","Parkett"].includes(p.category)).slice(0,500),scan:null})),
+   shops:state.shops.map(shop=>({...shop,items:shop.items.filter(isSupported).slice(0,500),scan:null})),
    tab:state.tab
   };
   localStorage.setItem(KEY,JSON.stringify(lite));
@@ -137,7 +137,8 @@ function save(){
 function applySaved(old){
  if(old&&Array.isArray(old.shops)&&old.shops.length){
   state.shops=old.shops.filter(x=>x&&typeof x.name==="string"&&typeof x.url==="string"&&Array.isArray(x.items))
-   .slice(0,20).map(x=>({...x,scan:x.scan||null,active:x.active!==false}));
+   .slice(0,20).map(x=>({...x,items:x.items.map(normalizedItem),
+    scan:x.scan||null,active:x.active!==false}));
  }
  if(old&&["products","comparison","offers"].includes(old.tab))state.tab=old.tab;
 }
@@ -224,9 +225,12 @@ function renderShops(){
   name.append(node("strong",null,shop.name));
   name.append(node("small","muted break",shop.url));
   const floorItems=shop.items.filter(isFloor);
+  const boardItems=shop.items.filter(p=>p.category==="Leisten");
   const count=floorItems.length,priced=floorItems.filter(validPrice).length;
   const pending=(shop.scan?.jobs?.length||0)+(shop.scan?.urls?.length||0);
-  name.append(node("small","muted",count+" Artikel · "+priced+" €/m²-Preise "+(shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
+  name.append(node("small","muted",count+" Böden · "+priced+" €/m²-Preise · "+
+  boardItems.length+" Leisten · "+boardItems.filter(priceAvailable).length+" Leistenpreise "+
+  (shop.checkedAt?"· Stand "+shop.checkedAt:"· noch nicht geprüft")));
   if(shop.scan?.blocked)name.append(node("small","stale","Zugriff eingeschränkt · später erneut versuchen"));
   else if(pending)name.append(node("small","muted",pending+" Prüfaufgaben ausstehend · Scan fortsetzen"));
   else if(shop.scan?.failures)name.append(node("small","stale","Mit "+shop.scan.failures+" Abrufproblemen beendet"));
@@ -248,9 +252,10 @@ function renderShops(){
  el("resetButton").disabled=state.busy||!selected.length;
 }
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>
- s.items.filter(isFloor).map(p=>({...p,shopId:s.id,shopName:s.name})))} 
+ s.items.filter(isSupported).map(item=>({...normalizedItem(item),shopId:s.id,shopName:s.name})))} 
 function validPrice(p){return isFloor(p)&&Number.isFinite(p.price)&&p.price>0&&p.unit==="m²"}
-function priceAvailable(p){return validPrice(p)}
+function priceAvailable(p){return validPrice(p)||
+ (p?.category==="Leisten"&&Number.isFinite(p.price)&&p.price>0&&["m","Stück"].includes(p.unit))}
 function filteredItems(onlyOffers=false){
  const q=state.query.toLowerCase();
  let list=allItems().filter(p=>
@@ -268,7 +273,13 @@ function hasComparablePrice(a,b){
 }
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
+const SUPPORTED_CATEGORIES=[...PRICE_CATEGORIES,"Leisten"];
 const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
+const isSkirtingName=name=>/(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(String(name||""));
+const isSupported=p=>p&&(SUPPORTED_CATEGORIES.includes(p.category)||
+ (p.category==="Zubehör"&&isSkirtingName(p.name)));
+const normalizedItem=p=>p?.category==="Zubehör"&&isSkirtingName(p.name)?
+ {...p,category:"Leisten"}:p;
 function productLink(p,label){
  const a=node("a",null,label||"Produkt öffnen ↗");
  a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
@@ -324,7 +335,7 @@ function renderOverview(items){
 }
 function renderQuickCategories(){
  const box=el("quickCategories");box.replaceChildren();
- const choices=[["","Alle Bodenbeläge"],...PRICE_CATEGORIES.map(cat=>[cat,cat==="Vinyl"?"Vinyl / Rigid-Vinyl":cat])];
+ const choices=[["","Alle Produkte"],...SUPPORTED_CATEGORIES.map(cat=>[cat,cat==="Vinyl"?"Vinyl / Rigid-Vinyl":cat==="Leisten"?"Fuß-/Sockelleisten":cat])];
  for(const [value,label]of choices){
   const button=btn(label,()=>{
    state.category=value;
@@ -551,7 +562,8 @@ async function api(site,action,extra){
 }
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 function mergeItem(map,p){
- if(!p||!p.url||!p.name||!isFloor(p))return;
+ if(!p||!p.url||!p.name||!isSupported(p))return;
+ p=normalizedItem(p);
  const old=map.get(p.url);
  if(!old){map.set(p.url,p.price!=null?{...p,priceCheckedAt:p.checkedAt||new Date().toISOString()}:p);return;}
  const next=Object.assign({},old,p);
@@ -564,10 +576,10 @@ function mergeItem(map,p){
  map.set(p.url,next);
 }
 function scanStats(shop,scan){
- shop.items=[...scan.items.values()].filter(isFloor).slice(0,12000);
+ shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  engineVersion:5,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:6,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
@@ -589,13 +601,13 @@ async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  // Refresh legacy crawl queues but never discard previously collected products.
- if(saved&&saved.engineVersion!==5)saved=null;
+ if(saved&&saved.engineVersion!==6)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
    const jobs=found.jobs||[];
-   const unpriced=previous.filter(p=>p?.url&&isFloor(p)&&!validPrice(p)).map(p=>p.url);
-   saved={engineVersion:5,
+   const unpriced=previous.filter(p=>p?.url&&isSupported(p)&&!priceAvailable(normalizedItem(p))).map(p=>p.url);
+   saved={engineVersion:6,
     jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list")],
     urls:[...new Set([...unpriced,...(found.urls||[])])],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],retryCounts:{},unresolved:[],truncated:false};
@@ -613,7 +625,7 @@ async function scanShop(shop,restart,quick=false){
   ...saved,
   visitedJobs:new Set(saved.visitedJobs||[]),
   visitedUrls:new Set(saved.visitedUrls||[]),
-  items:new Map(previous.filter(p=>p?.url&&isFloor(p)).map(p=>[p.url,p])),
+  items:new Map(previous.filter(p=>p?.url&&isSupported(p)).map(p=>[p.url,normalizedItem(p)])),
   retryCounts:{...(saved.retryCounts||{})},
   unresolved:Array.isArray(saved.unresolved)?saved.unresolved.slice(-1500):[],
   errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
