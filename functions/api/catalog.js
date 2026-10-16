@@ -96,6 +96,7 @@ function typeOf(text){
  const t=clean(text).toLowerCase();
  if(!t)return null;
  if(/(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i.test(t))return null;
+ if(/^(?:montagekleber|kleber|dämmung|trittschall|unterlage|reiniger|abschlussprofil|übergangsprofil|zubehör|pflege|fugenmasse|schienen)/i.test(t))return null;
  // Laminat inklusive Fußleisten is still laminate flooring, not a standalone
  // skirting board. Everything else containing a skirting-board noun is Leisten.
  if(SKIRTING_RE.test(t)){
