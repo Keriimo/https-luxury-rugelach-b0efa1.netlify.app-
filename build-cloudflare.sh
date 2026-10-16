@@ -5,8 +5,9 @@ set -eu
 # are detected in the build logs rather than after deployment.
 node --check app.js
 node --check functions/api/catalog.js
-node --test tests/cloudflare.test.cjs
+node --check worker.js
+node --test tests/cloudflare.test.cjs tests/worker.test.cjs
 
 mkdir -p dist
-cp index.html app.js _routes.json _headers dist/
+cp index.html app.js dist/
 echo "MarktRadar Cloudflare Free: validation passed, static files ready."
