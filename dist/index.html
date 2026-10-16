@@ -120,7 +120,7 @@ a{color:#c51f32;text-decoration:underline}
 <header id="hero" class="hero">
 <div class="row between">
 <div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div>
-<div class="hero-tools"><span class="badge">Version 5.2 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-tools"><span class="badge">Version 5.3 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
@@ -205,7 +205,7 @@ a{color:#c51f32;text-decoration:underline}
 <section class="panel">
 <div class="tabs" style="margin-bottom:16px">
 <button id="productsTab" class="active">Alle Produkte</button>
-<button id="comparisonTab">Technischer Vergleich</button>
+<button id="comparisonTab">Preisduell &amp; 2er-Check</button>
 <button id="offersTab">Werbepreise</button>
 </div>
 <div id="productsSection">
@@ -213,13 +213,14 @@ a{color:#c51f32;text-decoration:underline}
 <div id="tableHolder" class="table-wrap"></div>
 </div>
 <div id="comparisonSection" hidden>
-<h2>Vergleichsvorschläge mit technischen Unterschieden</h2>
-<p class="notice" style="margin:0 0 12px">Automatische Vorschläge sind keine bestätigte Gleichwertigkeit. Technische Merkmale lassen sich auch ohne Preis vergleichen; der Preisvorteil wird nur berechnet, wenn beide Preise bekannt sind.</p>
+<h2>Preisduell nach Bodenart</h2>
+<p class="notice" style="margin:0 0 12px">Hier werden die günstigsten <strong>erfassten</strong> Preise je Bodenart und Shop nebeneinander gezeigt. Es können unterschiedliche Produkte sein – daraus folgt keine Gleichwertigkeit.</p>
+<div id="priceDuelHolder" class="table-wrap"></div>
+<div class="section-rule"></div>
+<h2>2-Produkte-Check</h2>
+<p class="section-note">In „Alle Produkte“ zwei Böden auswählen. Dann werden die echten technischen Angaben und – falls vorhanden – die Verkaufspreise nebeneinander angezeigt.</p>
 <div class="selection-bar"><div id="manualSelectionLabel">Noch keine Produkte zum Vergleich ausgewählt.</div><div class="row"><button id="clearCompare">Auswahl löschen</button></div></div>
 <div id="manualComparisonHolder"></div>
-<div class="section-rule"></div>
-<h3>Automatische Vergleichsvorschläge</h3>
-<div id="comparisonHolder"></div>
 </div>
 <div id="offersSection" hidden>
 <h2>Erkannte Werbepreise, Aktionen und Angebote</h2>
@@ -227,7 +228,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.2: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
+<p class="foot">MarktRadar 5.3: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
