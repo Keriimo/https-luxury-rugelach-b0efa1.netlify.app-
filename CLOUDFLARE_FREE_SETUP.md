@@ -11,7 +11,7 @@
 5. **Build command**: `sh build-cloudflare.sh`.
 6. **Build output directory / Publish directory**: `dist`.
 7. Speichern und veröffentlichen. Cloudflare erzeugt eine neue Adresse unter `*.pages.dev`.
-8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.6.0-free"` erscheinen.
+8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.7.0-free"` erscheinen.
 9. MarktRadar öffnen und den Button **Verbindung prüfen** klicken. Anschließend mit nur einem Shop einen kleinen Scan starten.
 
 **Wichtig:** Die alte Netlify-Adresse wird durch die Veröffentlichung bei Cloudflare NICHT automatisch aktualisiert. Kollegen benötigen später den neuen Cloudflare-Link.
@@ -81,3 +81,7 @@ Für bereits erfasste Produkte ohne Preis wird beim nächsten Scan eine neue Pr�
 ## Version 5.6 – Nur Bodenbeläge und Leisten
 
 Filter, Katalogscan und Bestpreis-Dashboard führen Laminat, Vinyl/Rigid-Vinyl, Parkett sowie Fuß-/Sockelleisten. Keine weiteren Zubehörprodukte. Leisten je Meter und je Stück getrennt darstellen; keine Preisberechnung aus unbeschrifteten Paket- oder Gesamtpreisen. Der Browser speichert Daten weiterhin unter `marktradar:catalog:v3`, die Scanwarteschlange wird auf die neue Version aktualisiert.
+
+## MarketRadar 5.7 – Shop-Mix und Designstudio
+
+Nach erfolgreichem Cloudflare-Deploy: mit Strg+F5 aktualisieren und Version 5.7 prüfen. In „Preisradar & Produktvergleich“ müssen beide ausgewählten Shops erscheinen, auch wenn ein Shop 0 automatische €/m²-Preise hat. Produktvergleich links/rechts über Shop- und Artikelauswahl. Preise nur manuell ergänzen, wenn im Originalshop überprüft. In „Designstudio“ Farben, Texte, Logo ändern und bei Bedarf eine portable JSON-Designdatei exportieren/importieren. Die Designdatei enthält gegebenenfalls das eingebettete Logo, aber keine Produktdaten. Nur Laminat, Vinyl/Rigid und Parkett werden gescannt.
