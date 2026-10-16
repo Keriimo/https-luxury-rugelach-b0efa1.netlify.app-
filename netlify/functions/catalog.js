@@ -148,6 +148,35 @@ function details(text,name){
 }
 function priceInfo(t,structured,packM2){
  const text=clean(t).slice(0,14000);
+ // Laminat DEPOT uses distinct Boden, Komplettpreis and accessory rows.
+ // Prefer a proven Boden price; never use a free insulation row as the floor price.
+ const directPrice=/([0-9]{1,4}(?:[,.][0-9]{2}))\s*€\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi;
+ const takeCurrent=part=>{
+  const all=[...part.matchAll(directPrice)].filter(m=>
+   !/(?:statt|uvp|alter\s+preis|du\s+sparst|ab)\s*:?\s*$/i.test(part.slice(Math.max(0,m.index-48),m.index)));
+  return all.length?num(all[all.length-1][1]):null;
+ };
+ for(const match of [...text.matchAll(/\bBoden\b/gi)].slice(0,20)){
+  const portion=text.slice(match.index+match[0].length,match.index+match[0].length+180)
+   .split(/(?:\+\s*inkl\.?|Dämmung|Daemmung|Fußleiste|Fussleiste|Sockelleiste|Komplettpreis|Paketpreis)/i)[0];
+  const price=takeCurrent(portion);
+  if(price&&price<500)return {price,unit:"m²",priceSource:"Bodenpreis €/m² auf Produktseite",
+    oldPrice:null,promotion:"",discountPct:null};
+ }
+ for(const match of [...text.matchAll(/\b(?:Komplettpreis|Komplett-Set)\b/gi)].slice(0,20)){
+  const portion=text.slice(match.index+match[0].length,match.index+match[0].length+180)
+   .split(/(?:Du sparst|Paketpreis|inkl\.\s*19%)/i)[0];
+  const price=takeCurrent(portion);
+  if(price&&price<500)return {price,unit:"m²",priceSource:"Komplettpreis €/m² auf Produktseite",
+    oldPrice:null,promotion:"",discountPct:null};
+ }
+ const pair=[...text.matchAll(/Paketpreis\s*:?\s*([0-9]{1,5}(?:[,.][0-9]{2}))\s*€\s*(?:\||;|,)\s*Inhalt\s*:?\s*([0-9]{1,3}(?:[,.][0-9]{1,3}))\s*(?:m²|m2|qm)/gi)];
+ if(pair.length===1){
+  const total=num(pair[0][1]),area=num(pair[0][2]);
+  if(total&&area&&area>=0.1&&area<=15)
+   return {price:Math.round(total/area*100)/100,unit:"m²",
+    priceSource:"Paketpreis / Paketfläche (berechnet)",oldPrice:null,promotion:"",discountPct:null};
+ }
  const found=[];
  const patterns=[
   /(?:Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|\-–\s]*?(\d{1,4}(?:[.,]\d{2}))\s*€/gi,
