@@ -95,8 +95,8 @@ function typeOf(text){
  // Exclude PVC-sheeting, carpet, bioboden, accessories and other materials.
  // The category MUST be found in the product's own title/type, never in the
  // global navigation on the same page.
- if(/teppich|auslegware|nadelfilz|linoleum|bioboden|bio.?boden|korkboden|pvc.?boden|cv.?belag|fußleiste|fussleiste|sockelleiste|dämmung(?:splatte)?|trittschall|unterlage|kleber|reiniger|abschlussprofil/.test(t)&&
-    !/(?:laminat|parkett|vinyl|rigid|spc|lvt|designboden)/.test(t))return null;
+ if(/(?:^|\b)(?:teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)\b/.test(t))return null;
+ if(/^(?:fußleiste|fussleiste|sockelleiste|dämmung|trittschall|unterlage|kleber|reiniger|abschlussprofil|zubehör)\b/.test(t))return null;
  if(/parkett|fertigparkett|massivholz|schiffsboden/.test(t))return "Parkett";
  if(/laminat|laminate\b/.test(t))return "Laminat";
  if(/vinyl|rigid(?:[-\s]?vinyl)?|spc\b|lvt\b|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
@@ -165,7 +165,7 @@ function productPagePrice(text,structured,pack){
  const segments=[...t.matchAll(/\bKomplettpreis\b/gi)].slice(0,8);
  for(const segment of segments){
   const chunk=t.slice(segment.index,segment.index+175).split(/(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
-  const euro=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)\b/gi)];
+  const euro=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/gi)];
   // Sometimes the old "statt" price is shown without a unit but the sale
   // price is immediately followed by "€/m²".
   if(euro.length){
