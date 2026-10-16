@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MarktRadar · Laminat DEPOT – Wettbewerbsanalyse</title>
-<meta name="description" content="Wettbewerbsanalyse für Laminat, Vinyl und Rigid-Vinyl, Parkett sowie Fuß- und Sockelleisten. Bodenpreise je m², Leistenpreise je Meter oder Stück.">
+<meta name="description" content="Wettbewerbsanalyse für Laminat, Vinyl/Rigid-Vinyl und Parkett mit nachvollziehbaren €/m²-Preisen und technischen Produktvergleichen.">
 <style>
 :root{--ink:#17243a;--accent:#e5233f;--muted:#66758b;--surface:#fff;--border:#e1e6ef;--base:#f2f4f7;--ok:#0c8c62;--hero:#15233a}
 *{box-sizing:border-box}
@@ -14,6 +14,13 @@ body{margin:0;font:14px/1.48 system-ui,-apple-system,"Segoe UI",Arial,sans-serif
 .hero:after{content:"";width:260px;height:260px;border:1px solid rgba(255,255,255,.08);border-radius:50%;position:absolute;right:-90px;top:-130px;pointer-events:none}
 .hero>*{position:relative;z-index:1}
 .hero h1{font-size:34px}
+.hero-brand{display:flex;align-items:center;gap:12px;min-width:0}
+#brandLogo{max-width:150px;max-height:58px;object-fit:contain;background:rgba(255,255,255,.95);padding:5px;border-radius:8px}
+.logo-preview{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:8px}
+#editorLogoPreview{max-width:150px;max-height:70px;object-fit:contain;background:#fff;border:1px solid var(--border);border-radius:8px;padding:5px}
+.file-label{padding:9px 13px;border:1px solid var(--border);border-radius:9px;cursor:pointer;font-weight:600;background:white}
+.editor-grid input[type=color]{height:42px;padding:4px 6px;max-width:180px;cursor:pointer}
+#editorImport{width:1px;height:1px;opacity:0;position:absolute;overflow:hidden}
 .hero.light{color:var(--ink);border:1px solid var(--border)}
 .hero.light .hero-tools button{color:var(--ink);border-color:var(--border);background:#f4f6f9}
 .hero.light p{color:var(--muted)}
@@ -55,12 +62,12 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 #message[data-kind=warning]{background:#fff4df;color:#775115}
 #message[data-kind=ok]{background:#e5f6ed;color:#155a38}
 #progress{background:#eaf0fc;color:#244b7b}
-.metrics{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px;margin-top:16px}
+.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-top:16px}
 .metric-card{border:1px solid var(--border);border-radius:14px;padding:18px;background:white;box-shadow:0 2px 8px rgba(24,35,56,.025)}
 .metric-card small{font-size:12px}
 .section-intro{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin:2px 0 13px}
 .section-intro h2{margin-bottom:3px}
-.best-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+.best-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
 .best-card{border:1px solid var(--border);border-radius:13px;background:#fff;padding:16px;min-width:0}
 .best-card strong{display:block;font-size:24px;line-height:1.3;margin:8px 0 4px}
 .best-card .name{font-size:12px;color:var(--ink);overflow-wrap:anywhere}
@@ -78,6 +85,14 @@ label{font-size:12px;font-weight:700;display:block;margin-bottom:6px}
 .editor-actions{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .editor-note{font-size:12px;color:var(--muted)}
 .section-note{color:var(--muted);font-size:12px}
+.pair-picker-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:14px 0}
+.picker-card{background:#f7f9fb;border:1px solid var(--border);border-radius:14px;padding:15px;display:flex;flex-direction:column;gap:7px}
+.picker-card input,.picker-card select{width:100%;min-width:0}
+.picker-card label{font-size:12px;font-weight:700;margin-top:5px}
+.picker-card button{margin-top:7px}
+#priceDuelHolder td{min-width:155px}
+#priceDuelHolder td strong,#priceDuelHolder td small{display:block}
+@media(max-width:680px){.pair-picker-grid{grid-template-columns:1fr}}
 .selection-bar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:11px 14px;background:#eef3f9;border-radius:11px;margin-bottom:13px}
 .pair .detail-box{overflow-x:auto}
 .pair strong,.offer strong{overflow-wrap:anywhere}
@@ -119,30 +134,40 @@ a{color:#c51f32;text-decoration:underline}
 <main class="layout">
 <header id="hero" class="hero">
 <div class="row between">
-<div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div>
-<div class="hero-tools"><span class="badge">Version 5.6 · KOSTENLOS</span><button id="appearanceButton" type="button">Darstellung anpassen <span aria-hidden="true">⚙</span></button></div>
+<div class="hero-brand"><img id="brandLogo" alt="Dein Markenlogo" hidden><div class="kicker" id="brandLabel">LAMINAT DEPOT · MARKTRADAR</div></div>
+<div class="hero-tools"><span class="badge">Version 5.7 · KOSTENLOS</span><button id="appearanceButton" type="button">Designstudio öffnen <span aria-hidden="true">⚙</span></button></div>
 </div>
 <div class="brand-ribbon"></div>
 <h1 id="pageHeading">Wettbewerbsanalyse</h1>
-<p id="pageSubtitle">Laminat · Vinyl / Rigid-Vinyl · Parkett · Fuß-/Sockelleisten</p>
+<p id="pageSubtitle">Laminat · Vinyl / Rigid-Vinyl · Parkett · €/m²</p>
 </header>
-<section class="panel" id="appearancePanel" hidden aria-label="Überschrift und Design bearbeiten">
- <div class="section-intro"><div><h2>Darstellung selbst anpassen</h2><div class="section-note">Nur für diesen Browser gespeichert · keine Änderung am Scanner</div></div></div>
+<section class="panel" id="appearancePanel" hidden aria-label="Designstudio">
+ <div class="section-intro"><div><h2>Designstudio · selbst gestalten</h2><div class="section-note">Logo, Überschriften, Farben und Texte bearbeiten. Alle Angaben werden nur in deinem Browser gespeichert.</div></div></div>
  <div class="editor-grid">
   <div><label for="editorBrand">Marken-Zeile</label><input id="editorBrand" maxlength="65" placeholder="LAMINAT DEPOT · MARKTRADAR"></div>
   <div><label for="editorTitle">Überschrift</label><input id="editorTitle" maxlength="80" placeholder="Wettbewerbsanalyse"></div>
   <div style="grid-column:1/-1"><label for="editorSubtitle">Untertitel</label><input id="editorSubtitle" maxlength="130" placeholder="Laminat · Vinyl / Rigid-Vinyl · Parkett"></div>
-  <div><label for="editorAccent">Akzentfarbe</label><select id="editorAccent"><option value="#e5233f">DEPOT-Rot</option><option value="#c51f32">Dunkelrot</option><option value="#2563eb">Blau</option><option value="#0c8c62">Grün</option></select></div>
-  <div><label for="editorTheme">Kopfbereich</label><select id="editorTheme"><option value="#15233a">Dunkelblau (DEPOT-Stil)</option><option value="#101827">Anthrazit</option><option value="#ffffff">Hell</option></select></div>
+  <div style="grid-column:1/-1"><label for="editorOverviewText">Text der Preisübersicht</label><input id="editorOverviewText" maxlength="190" placeholder="Die günstigsten erfassten Angebote ..."></div>
+  <div><label for="editorTabProducts">Text des Produkte-Reiters</label><input id="editorTabProducts" maxlength="36"></div>
+  <div><label for="editorTabCompare">Text des Vergleich-Reiters</label><input id="editorTabCompare" maxlength="36"></div>
+  <div><label for="editorAccent">Akzentfarbe / Buttons</label><input type="color" id="editorAccent" value="#e5233f"></div>
+  <div><label for="editorTheme">Farbe Kopfbereich</label><input type="color" id="editorTheme" value="#15233a"></div>
+  <div><label for="editorBackground">Seitenhintergrund</label><input type="color" id="editorBackground" value="#f2f4f7"></div>
+  <div><label for="editorTextColor">Textfarbe</label><input type="color" id="editorTextColor" value="#17243a"></div>
+  <div style="grid-column:1/-1"><label for="editorLogo">Eigenes Logo (PNG, JPG oder WebP, max. 200 KB)</label><input id="editorLogo" type="file" accept="image/png,image/jpeg,image/webp">
+   <div class="logo-preview"><img id="editorLogoPreview" alt="Logovorschau" hidden><button id="removeLogo" type="button">Logo entfernen</button><span class="editor-note">Bitte nur Logos verwenden, die du nutzen darfst.</span></div>
+  </div>
  </div>
  <div class="editor-actions" style="margin-top:14px">
-  <button id="editorSave" class="primary">Darstellung speichern</button>
-  <button id="editorReset">Standard wiederherstellen</button>
-  <span class="editor-note">Die Einstellungen beeinflussen nur das Design, nicht den Scan.</span>
+  <button id="editorSave" class="primary">Design speichern</button>
+  <button id="editorReset" type="button">Standard wiederherstellen</button>
+  <button id="editorExport" type="button">Design exportieren</button>
+  <label class="file-label" for="editorImport">Design importieren (JSON)</label><input type="file" id="editorImport" accept=".json,application/json">
  </div>
+ <p class="editor-note">Design und Logo sind unabhängig vom Scanner. Damit deine Kollegen dasselbe Design sehen, kannst du die Design-Datei exportieren und bei ihnen importieren – ohne Anmeldung.</p>
 </section>
 <section class="panel" aria-label="Marktübersicht" id="overviewSection">
- <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note">Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m² sowie Fuß-/Sockelleisten je Meter oder Stück. Kein garantierter Komplettkatalog.</div></div>
+ <div class="section-intro"><div><h2>Preisradar · auf einen Blick</h2><div class="section-note" id="overviewTagline">Bestpreise für Laminat, Vinyl / Rigid-Vinyl und Parkett je m². Ohne nachgewiesenen Preis zeigen wir klar „Preis fehlt“.</div></div>
  <span class="data-status" id="priceCoverage">Noch keine Preisdaten</span></div>
  <div id="bestPriceGrid" class="best-grid"></div>
  <div class="section-rule"></div>
@@ -175,13 +200,13 @@ a{color:#c51f32;text-decoration:underline}
 </section>
 <div id="metrics" class="metrics"></div>
 <section class="panel">
-<div class="section-intro"><div><h2>Produkte suchen und filtern</h2><div class="section-note">Schnellauswahl nach Bodenart, Fuß-/Sockelleisten, Produktname und Preis.</div></div></div>
+<div class="section-intro"><div><h2>Produkte suchen und filtern</h2><div class="section-note">Schnellauswahl nach Bodenart, Produktname und Preis.</div></div></div>
 <div class="quick-category" id="quickCategories" aria-label="Kategorie-Schnellauswahl"></div>
 <div class="filters" style="margin-top:13px">
 <input id="productSearch" placeholder="Produktname, Artikelnummer oder Marke suchen" aria-label="Produkt suchen">
 <select id="category" aria-label="Kategorie">
 <option value="">Alle Kategorien</option>
-<option value="Laminat">Laminat</option><option value="Vinyl">Vinyl / Rigid-Vinyl</option><option value="Parkett">Parkett</option><option value="Leisten">Fuß-/Sockelleisten</option>
+<option value="Laminat">Laminat</option><option value="Vinyl">Vinyl / Rigid-Vinyl</option><option value="Parkett">Parkett</option>
 </select>
 <select id="promotions" aria-label="Aktion">
 <option value="">Alle Preise</option>
@@ -196,6 +221,7 @@ a{color:#c51f32;text-decoration:underline}
 <option value="5000">Alle erfassten</option>
 </select>
 <select id="sort" aria-label="Sortierung">
+<option value="balanced" selected>Shop-Mix · alle Anbieter sichtbar</option>
 <option value="price">Günstigste zuerst</option>
 <option value="name">Produktname</option>
 <option value="new">Neueste Prüfung</option>
@@ -205,7 +231,7 @@ a{color:#c51f32;text-decoration:underline}
 <section class="panel">
 <div class="tabs" style="margin-bottom:16px">
 <button id="productsTab" class="active">Alle Produkte</button>
-<button id="comparisonTab">Preisduell &amp; 2er-Check</button>
+<button id="comparisonTab">Preisradar &amp; Produktvergleich</button>
 <button id="offersTab">Werbepreise</button>
 </div>
 <div id="productsSection">
@@ -214,11 +240,26 @@ a{color:#c51f32;text-decoration:underline}
 </div>
 <div id="comparisonSection" hidden>
 <h2>Preisduell nach Bodenart</h2>
-<p class="notice" style="margin:0 0 12px">Hier werden die günstigsten <strong>erfassten</strong> Preise nach Bodenart bzw. Leisten-Einheit je Shop nebeneinander gezeigt. Es können unterschiedliche Produkte sein – daraus folgt keine Gleichwertigkeit.</p>
+<p class="notice" style="margin:0 0 12px">Alle ausgewählten Shops werden gezeigt – auch wenn Laminat DEPOT noch keinen maschinell erkannten Preis hat. Verglichen werden Kategorie-Bestpreise, nicht automatisch identische Artikel.</p>
 <div id="priceDuelHolder" class="table-wrap"></div>
 <div class="section-rule"></div>
 <h2>2-Produkte-Check</h2>
-<p class="section-note">In „Alle Produkte“ zwei Böden auswählen. Dann werden die echten technischen Angaben und – falls vorhanden – die Verkaufspreise nebeneinander angezeigt.</p>
+<p class="section-note">Wähle links und rechts einen Shop und einen konkreten Boden aus. Du kannst auch Produkte ohne Preis technisch vergleichen und auf Grundlage des Originalangebots selbst einen geprüften €/m²-Preis ergänzen.</p>
+<div class="pair-picker-grid" aria-label="Produkte zum Vergleichen auswählen">
+ <div class="picker-card">
+  <label for="compareShopA">Shop links</label><select id="compareShopA"></select>
+  <label for="compareSearchA">Produkt suchen</label><input id="compareSearchA" placeholder="z. B. Laminat Eiche 8 mm">
+  <label for="compareProductA">Produkt wählen</label><select id="compareProductA"></select>
+  <button id="comparePriceA" type="button">Preis aus Originalshop eintragen</button>
+ </div>
+ <div class="picker-card">
+  <label for="compareShopB">Shop rechts</label><select id="compareShopB"></select>
+  <label for="compareSearchB">Produkt suchen</label><input id="compareSearchB" placeholder="z. B. Eiche NK 32">
+  <label for="compareProductB">Produkt wählen</label><select id="compareProductB"></select>
+  <button id="comparePriceB" type="button">Preis aus Originalshop eintragen</button>
+ </div>
+</div>
+<p class="notice">Manuell eingetragene Preise werden als solche markiert und nur für den ausgewählten Artikel gespeichert. Bitte vorher den aktuellen €/m²-Preis im verlinkten Originalshop prüfen.</p>
 <div class="selection-bar"><div id="manualSelectionLabel">Noch keine Produkte zum Vergleich ausgewählt.</div><div class="row"><button id="clearCompare">Auswahl löschen</button></div></div>
 <div id="manualComparisonHolder"></div>
 </div>
@@ -228,7 +269,7 @@ a{color:#c51f32;text-decoration:underline}
 <div id="offersHolder"></div>
 </div>
 </section>
-<p class="foot">MarktRadar 5.6: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
+<p class="foot">MarktRadar 5.7: Cloudflare Workers im kostenlosen Tarif, ohne lokale Installation. Bei Gratis-Grenzen pausieren Scans; keine kostenpflichtige KI aktiviert. Daten werden auf diesem Gerät gespeichert – nicht automatisch zwischen Kollegen synchronisiert. Shopseiten können Scans beschränken. Abgerufene Preise und Produktmerkmale sind vor Vertriebsaussagen anhand der Originalquelle zu prüfen. Keine externe KI aktiviert. Gestaltung in diesem Browser anpassbar – kein offizielles Laminat-DEPOT-Produkt.</p>
 </main>
 </body>
 </html>
