@@ -564,7 +564,9 @@ function scanStats(shop,scan){
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
   engineVersion:5,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
-  errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
+  errors:(scan.errors||[]).slice(-6),retryCounts:scan.retryCounts||{},
+  unresolved:(scan.unresolved||[]).slice(-1500),
+  truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
 }
@@ -592,7 +594,7 @@ async function scanShop(shop,restart,quick=false){
    saved={engineVersion:5,
     jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list")],
     urls:[...new Set([...unpriced,...(found.urls||[])])],visitedJobs:[],visitedUrls:[],
-    pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
+    pages:0,done:0,failures:0,other:0,errors:[],retryCounts:{},unresolved:[],truncated:false};
   }catch(e){
    const message=errorKind(e);
    shop.scan={jobs:[],urls:[],visitedJobs:[],visitedUrls:[],
@@ -608,6 +610,8 @@ async function scanShop(shop,restart,quick=false){
   visitedJobs:new Set(saved.visitedJobs||[]),
   visitedUrls:new Set(saved.visitedUrls||[]),
   items:new Map(previous.filter(p=>p?.url&&isFloor(p)).map(p=>[p.url,p])),
+  retryCounts:{...(saved.retryCounts||{})},
+  unresolved:Array.isArray(saved.unresolved)?saved.unresolved.slice(-1500):[],
   errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
   blocked:false
  };
@@ -692,15 +696,36 @@ async function scanShop(shop,restart,quick=false){
      const response=await api(shop.url,"batch",{urls:batch});
      for(const product of response.products||[])mergeItem(scan.items,product);
      for(const failure of response.errors||[]){
-      if(/Kategorie|Bodenbelag/i.test(failure.reason||"")){scan.other++;continue;}
-      const label=fail(failure.reason||"Produkt nicht abrufbar","detail");
-      if(scan.blocked){scan.urls.unshift(failure.url);scan.visitedUrls.delete(failure.url);}
-      else if(label==="Seite nicht gefunden")scan.failures--;
+      const url=failure.url,reason=failure.reason||"Produkt nicht abrufbar";
+      if(/Kategorie|Bodenbelag/i.test(reason)){scan.other++;continue;}
+      const label=errorKind(reason);
+      const times=(scan.retryCounts[url]||0)+1;
+      scan.retryCounts[url]=times;
+      if(["Zugriff verweigert","Anfragen begrenzt","Gratislimit erreicht"].includes(label)){
+       fail(reason,"detail");
+       scan.urls.unshift(url);scan.visitedUrls.delete(url);
+      }else if(times<3&&label!=="Seite nicht gefunden"){
+       // Transport/parse errors get two further attempts, saved across scans.
+       scan.urls.push(url);scan.visitedUrls.delete(url);
+      }else{
+       fail(reason,"detail");
+       if(!scan.unresolved.includes(url))scan.unresolved.push(url);
+      }
      }
     }catch(e){
-     fail(e,"detail");
-     if(scan.blocked)for(const url of batch.reverse()){
-      scan.urls.unshift(url);scan.visitedUrls.delete(url);
+     const label=errorKind(e);
+     if(["Zugriff verweigert","Anfragen begrenzt","Gratislimit erreicht"].includes(label)){
+      fail(e,"detail");
+     }
+     for(const url of batch.reverse()){
+      const times=(scan.retryCounts[url]||0)+1;
+      scan.retryCounts[url]=times;
+      if(scan.blocked||times<3){
+       scan.urls.unshift(url);scan.visitedUrls.delete(url);
+      }else{
+       if(!scan.unresolved.includes(url))scan.unresolved.push(url);
+       fail(e,"detail");
+      }
      }
     }
     await delay(250);
