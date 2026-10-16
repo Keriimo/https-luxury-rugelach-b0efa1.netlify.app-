@@ -51,7 +51,7 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"balanced",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:12000,sort:"balanced",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={
  brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
@@ -463,7 +463,7 @@ function renderManualComparison(){
   "2 Produkte zum direkten Merkmalsvergleich ausgewählt";
  area.replaceChildren();
  if(count<2){
-  area.append(node("p","empty","Auch ohne €/m²-Preis möglich. Gehe zur Produktliste und wähle zwei Produkte aus."));
+  area.append(node("p","empty","Wähle oben je einen konkreten Boden aus beiden Shops und klicke auf „Jetzt vergleichen“. Auch ohne Preise möglich."));
   return;
  }
  const a=state.manualCompare[0],b=state.manualCompare[1];
@@ -486,17 +486,24 @@ function renderManualComparison(){
 }
 function renderMetrics(items){
  const top=el("metrics");top.replaceChildren();
- const priced=items.filter(validPrice);
- const pricedShops=state.shops.filter(shop=>shop.active&&shop.items.some(validPrice)).length;
- const m=[["Bodenbeläge erfasst",items.length],["Geprüfte €/m²-Preise",priced.length],
-  ["Shops ausgewählt",state.shops.filter(shop=>shop.active).length],
-  ["Shops mit Preisen",pricedShops]];
- for(const [label,value] of m){
+ for(const category of ["Laminat","Vinyl","Parkett"]){
+  const match=items.filter(p=>p.category===category&&validPrice(p)).sort((a,b)=>a.price-b.price);
+  const best=match[0],label=category==="Vinyl"?"Vinyl / Rigid-Vinyl":category;
   const card=node("div","metric-card");
-  card.append(node("small","muted",label),node("strong","metric-val",value));
+  card.append(node("small","muted",label+" · bester erfasster €/m²-Preis"));
+  if(best){
+   card.append(node("strong","metric-val",showEuro(best.price)+" /m²"));
+   card.append(node("small","muted",best.shopName+" · "+best.name));
+   if(best.manualPrice)card.append(node("small","stale","Manuell geprüft · Originalangebot kontrollieren"));
+   card.append(productLink(best,"Bestpreis ansehen ↗"));
+  }else{
+   card.append(node("strong","metric-val","Noch kein Preis"));
+   card.append(node("small","muted","Kein auslesbarer €/m²-Preis in dieser Kategorie"));
+  }
   top.append(card);
  }
 }
+
 function renderPriceDuel(){
  const area=el("priceDuelHolder");area.replaceChildren();
  const shops=state.shops.filter(s=>s.active);
@@ -607,7 +614,7 @@ function fillCompareProducts(side){
   const option=node("option",null,p.category+" · "+p.name+(validPrice(p)?" · "+showEuro(p.price)+"/m²":" · Preis fehlt"));
   option.value=String(index);select.append(option);
   if(chosen?.url===p.url&&chosen.shopId===shop.id){select.value=String(index);matched=true;}
-  if(++found>=300)break;
+  found++;
  }
  if(!matched)select.value="";
  el("comparePrice"+side).disabled=!matched;
@@ -621,7 +628,33 @@ function selectCompareProduct(side){
   state.manualCompare[side==="A"?0:1]={...shop.items[idx],shopId:shop.id,shopName:shop.name};
  }
  el("comparePrice"+side).disabled=select.value==="";
+ el("compareNow").disabled=!state.manualCompare[0]||!state.manualCompare[1];
  renderManualComparison();
+}
+function compareNow(){
+ // Read both current dropdowns when clicked, not only an old cached selection.
+ for(const side of ["A","B"]){
+  const shop=state.shops.find(s=>s.id===el("compareShop"+side).value);
+  const control=el("compareProduct"+side),index=Number(control.value);
+  if(!shop||control.value===""||!Number.isInteger(index)||!isFloor(shop.items[index])){
+   setStatus("Bitte links UND rechts einen Boden wählen, anschließend „Jetzt vergleichen“ anklicken.","warning");
+   renderManualComparison();
+   return;
+  }
+  state.manualCompare[side==="A"?0:1]={
+   ...shop.items[index],shopId:shop.id,shopName:shop.name};
+ }
+ if(state.manualCompare[0].shopId===state.manualCompare[1].shopId&&
+    state.manualCompare[0].url===state.manualCompare[1].url){
+  setStatus("Bitte zwei verschiedene Produkte auswählen.","warning");return;
+ }
+ renderManualComparison();
+ const a=state.manualCompare[0],b=state.manualCompare[1];
+ const hasTwo=hasComparablePrice(a,b);
+ setStatus(hasTwo?
+  "Vergleich erstellt: technische Eigenschaften und beide €/m²-Preise werden angezeigt.":
+  "Technischer Vergleich erstellt. Ein Preis fehlt – deshalb keine unbelegte Ersparnis berechnet.","ok");
+ el("manualComparisonHolder").scrollIntoView?.({behavior:"smooth",block:"nearest"});
 }
 function editSelectedComparePrice(side){
  const p=state.manualCompare[side==="A"?0:1];
@@ -711,7 +744,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison"){renderPriceDuel();fillCompareShops();renderManualComparison();}
+ if(state.tab==="comparison"){renderPriceDuel();fillCompareShops();renderManualComparison();el("compareNow").disabled=!state.manualCompare[0]||!state.manualCompare[1];}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
@@ -1030,6 +1063,8 @@ el("editorReset").onclick=()=>{
  updateAppearance();setStatus("Standarddesign wiederhergestellt.","ok");
 };
 el("clearCompare").onclick=()=>{state.manualCompare=[];render();};
+el("compareNow").onclick=compareNow;
+
 for(const side of ["A","B"]){
  el("compareShop"+side).onchange=()=>{
   state.compareShops[side]=el("compareShop"+side).value;
