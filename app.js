@@ -711,6 +711,9 @@ function comparisonDetail(pair,box){
  const t=node("table","detail"),heading=node("tr");
  tableHeader(heading,["Merkmal",pair.a.shopName,pair.b.shopName]);t.append(heading);
  featureRow(t,"Produkt",pair.a.name,pair.b.name);
+ featureRow(t,"Bodenart",pair.a.category,pair.b.category);
+ featureRow(t,"Marke",pair.a.brand||null,pair.b.brand||null);
+ featureRow(t,"Artikelnummer",pair.a.sku||null,pair.b.sku||null);
  featureRow(t,"Preis je Verkaufseinheit",
   priceAvailable(pair.a)?showEuro(pair.a.price)+" /"+pair.a.unit:"Nicht erfasst",
   priceAvailable(pair.b)?showEuro(pair.b.price)+" /"+pair.b.unit:"Nicht erfasst");
@@ -800,6 +803,7 @@ function mergeItem(map,p){
  if(!p.thickness&&old.thickness)next.thickness=old.thickness;
  map.set(p.url,next);
 }
+let lastScanUiRefresh=0;
 function scanStats(shop,scan){
  shop.items=[...scan.items.values()].filter(isSupported).map(normalizedItem).slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
@@ -809,7 +813,12 @@ function scanStats(shop,scan){
   unresolved:(scan.unresolved||[]).slice(-1500),
   truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
- shop.checkedAt=now();save();renderShops();render();
+ shop.checkedAt=now();save();renderShops();
+ // With "Alle erfassten" selected a full table can contain thousands of rows.
+ // Avoid recreating it after EVERY network request while keeping scan state durable.
+ if(Date.now()-lastScanUiRefresh>5000){
+  render();lastScanUiRefresh=Date.now();
+}
 }
 
 
