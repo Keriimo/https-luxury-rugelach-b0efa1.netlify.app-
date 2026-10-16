@@ -620,7 +620,7 @@ el("exportButton").onclick=downloadJson;
 async function copyFilteredTable(){
  const rows=filteredItems();
  if(!rows.length){setStatus("Keine Produkte im aktuellen Filter zum Kopieren.","warning");return;}
- const safeCell=v=>String(v??"").replace(/\s+/g," ").trim().replace(/^[=+\-@\t\r]/,"' el("exportButton").onclick=downloadJson;");
+ const safeCell=v=>String(v??"").replace(/\s+/g," ").trim().replace(/^[=+\-@\t\r]/,match=>"'"+match);
  const fields=[["Produkt",p=>p.name],["Shop",p=>p.shopName],
   ["Kategorie",p=>p.category],["Preis",p=>p.price??""],
   ["Einheit",p=>p.unit||""],["Stärke mm",p=>p.thickness??""],
