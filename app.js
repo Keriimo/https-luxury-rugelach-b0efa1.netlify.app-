@@ -69,6 +69,9 @@ function loadAppearance(){
    if(heroOptions.includes(saved.hero))appearance.hero=saved.hero;
   }
  }catch(e){}
+ // Earlier browser-customized default headings can still list removed categories.
+ if(/bioboden|teppich|pvc|zubehör/i.test(appearance.subtitle))
+  appearance.subtitle=STANDARD_STYLE.subtitle;
  updateAppearance();
 }
 function updateAppearance(){
