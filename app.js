@@ -676,7 +676,7 @@ function scanStats(shop,scan){
  shop.items=[...scan.items.values()].slice(0,12000);
  shop.scan={jobs:scan.jobs.slice(0,12000),urls:scan.urls.slice(0,25000),
   visitedJobs:[...scan.visitedJobs].slice(-20000),visitedUrls:[...scan.visitedUrls].slice(-30000),
-  pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
+  engineVersion:3,pages:scan.pages,done:scan.done,failures:scan.failures,other:scan.other,
   errors:(scan.errors||[]).slice(-6),truncated:Boolean(scan.truncated),
   blocked:Boolean(scan.blocked),checkedAt:now()};
  shop.checkedAt=now();save();renderShops();render();
@@ -695,10 +695,14 @@ function errorKind(error){
 async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
+ // Refresh legacy crawl queues but never discard previously collected products.
+ if(saved&&saved.engineVersion!==3)saved=null;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
   try{
    const found=await api(shop.url,"discover");
-   saved={jobs:[{type:"shopify",page:1},...(found.jobs||[])],
+   const jobs=found.jobs||[];
+   saved={engineVersion:3,
+    jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list"),{type:"shopify",page:1}],
     urls:found.urls||[],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],truncated:false};
   }catch(e){
@@ -826,33 +830,44 @@ async function scanShop(shop,restart,quick=false){
 }
 async function scanAll(restart,deep=false){
  if(state.busy)return;
- const shops=state.shops.filter(s=>s.active);
+ const shops=state.shops.filter(shop=>shop.active);
  if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
  state.busy=true;renderShops();el("progress").hidden=false;
- const outcomes=[];
+ const outcomes=new Map();
+ const completed=new Set();
+ const rounds=deep?2:1;
  try{
-  for(const shop of shops){
-   setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
-   try{
-    let result=null;
-    const rounds=deep?2:1;
-    for(let round=0;round<rounds;round++){
-     if(remainingRequests()<8)break;
-     setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+" – Etappe "+(round+1)+"/"+rounds+". Bereits erfasste Produkte bleiben sichtbar.","normal");
-     result=await scanShop(shop,restart&&round===0,!deep);
-     if(result.blocked||result.complete||result.remaining===0)break;
+  // Round robin: every selected shop gets the same crawl budget per stage.
+  for(let round=0;round<rounds;round++){
+   for(const shop of shops){
+    if(completed.has(shop.id))continue;
+    if(remainingRequests()<6){
+     outcomes.set(shop.id,shop.name+": Tagesbudget aufgebraucht; erfasste Artikel bleiben erhalten.");
+     completed.add(shop.id);continue;
     }
-    if(!result){outcomes.push(shop.name+": Gratisbudget für diesen Browser ausgeschöpft.");continue;}
-    outcomes.push(shop.name+": "+result.count+" Artikel, "+result.priced+" €/m²-Preise"+
-     (result.blocked?" · Abruf eingeschränkt":
-     result.complete?" · Durchlauf abgeschlossen":" · Scan unvollständig")+
-     (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
-     (result.diagnostic?" · "+result.diagnostic:""));
-   }catch(e){outcomes.push(shop.name+": Fehler („"+e.message+"“)");}
+    setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+
+      " · Durchgang "+(round+1)+"/"+rounds+
+      ". Für alle ausgewählten Shops gelten dieselben Scan-Grenzen.","normal");
+    try{
+     const result=await scanShop(shop,restart&&round===0,!deep);
+     outcomes.set(shop.id,shop.name+": "+result.count+" erfasste Artikel, "+
+       result.priced+" €/m²-Preise"+
+       (result.blocked?" · Zugriff eingeschränkt":
+        result.complete?" · geprüft":" · Erfassung läuft")+
+       (result.remaining?" · "+result.remaining+" Aufgaben offen":"")+
+       (result.diagnostic?" · "+result.diagnostic:""));
+     if(result.blocked||result.complete||result.remaining===0)completed.add(shop.id);
+    }catch(e){
+     outcomes.set(shop.id,shop.name+": Fehler („"+e.message+"“)");
+     completed.add(shop.id);
+    }
+   }
   }
-  setStatus(outcomes.join(" | ")+". Daten können unvollständig sein. Originalangebote prüfen.","normal");
+  setStatus(shops.map(s=>outcomes.get(s.id)||s.name+": noch nicht geprüft").join(" | ")+
+   ". Bestpreise beziehen sich auf gefundene Produkte, nicht auf vollständige Shopsortimente.","normal");
  }finally{state.busy=false;renderShops();render();}
 }
+
 function downloadJson(){
  const blob=new Blob([JSON.stringify({exportedAt:new Date().toISOString(),shops:state.shops},null,2)],{type:"application/json"});
  const u=URL.createObjectURL(blob),a=node("a");a.href=u;a.download="marktradar-export.json";a.click();setTimeout(()=>URL.revokeObjectURL(u),1000);
