@@ -456,16 +456,60 @@ function renderManualComparison(){
  }
  area.append(card);
 }
-function renderMetrics(items,pairs){
+function renderMetrics(items){
  const top=el("metrics");top.replaceChildren();
- const m=[["Gefundene Produkte",items.length],["Mit €/m²-Preis",items.filter(validPrice).length],
-  ["Shops",state.shops.filter(s=>s.active).length],["Vergleichsvorschläge",pairs.length]];
- for(const [label,n]of m){
+ const priced=items.filter(validPrice);
+ const pricedShops=state.shops.filter(shop=>shop.active&&shop.items.some(validPrice)).length;
+ const m=[["Gefundene Produkte",items.length],["Preise pro m²",priced.length],
+  ["Shops ausgewählt",state.shops.filter(shop=>shop.active).length],
+  ["Shops mit Preisen",pricedShops]];
+ for(const [label,value] of m){
   const card=node("div","metric-card");
-  card.append(node("small","muted",label),node("strong","metric-val",n));
+  card.append(node("small","muted",label),node("strong","metric-val",value));
   top.append(card);
  }
 }
+function renderPriceDuel(){
+ const area=el("priceDuelHolder");area.replaceChildren();
+ const shops=state.shops.filter(s=>s.active);
+ if(!shops.length){area.append(node("div","empty","Bitte zuerst Shops auswählen."));return;}
+ const categories=state.category?[state.category]:
+  ["Laminat","Vinyl","Parkett","Bioboden & Kork","Teppich","PVC","Zubehör"];
+ const table=node("table","mini-table"),head=node("thead"),line=node("tr"),body=node("tbody");
+ const cols=["Bodenart",...shops.map(shop=>shop.name)];
+ tableHeader(line,cols);head.append(line);
+ for(const category of categories){
+  const row=node("tr");
+  row.append(node("td",null,category));
+  const results=shops.map(shop=>{
+   const matches=shop.items.filter(p=>p.category===category&&priceAvailable(p)&&
+      (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+   const ranked=matches.sort((a,b)=>a.price-b.price);
+   return {count:ranked.length,best:ranked[0]};
+  });
+  const values=results.filter(r=>r.best);
+  const lowest=values.length>1?Math.min(...values.map(r=>r.best.price)):null;
+  for(const entry of results){
+   const cell=node("td");
+   if(entry.best){
+    cell.append(node("strong","price",showEuro(entry.best.price)+" /"+entry.best.unit));
+    cell.append(node("small","muted",entry.count+" Angebote mit Preis"));
+    const title=node("small","muted",entry.best.name);
+    cell.append(title);
+    if(lowest!==null&&entry.best.price===lowest)
+      cell.append(node("small","green","Niedrigster erfasster Kategoriepreis"));
+    cell.append(productLink(entry.best,"Produkt ansehen ↗"));
+   }else{
+    cell.append(node("strong","price-unknown","Kein Preis erfasst"));
+    cell.append(node("small","muted","Shop noch weiter prüfen"));
+   }
+   row.append(cell);
+  }
+  body.append(row);
+ }
+ table.append(head,body);area.append(table);
+}
+
 function tableHeader(tr,headers){for(const h of headers)tr.append(node("th",null,h));}
 function renderProducts(){
  const box=el("tableHolder");box.replaceChildren();
@@ -575,8 +619,8 @@ function renderPromos(){
  }
 }
 function render(){
- const all=allItems(),pairs=comparePairs();
- renderMetrics(all,pairs);renderOverview(all);renderQuickCategories();
+ const all=allItems();
+ renderMetrics(all);renderOverview(all);renderQuickCategories();
  el("productsTab").classList.toggle("active",state.tab==="products");
  el("comparisonTab").classList.toggle("active",state.tab==="comparison");
  el("offersTab").classList.toggle("active",state.tab==="offers");
@@ -584,7 +628,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison"){renderManualComparison();renderComparisons(pairs);}
+ if(state.tab==="comparison"){renderPriceDuel();renderManualComparison();}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
