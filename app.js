@@ -275,7 +275,12 @@ function hasComparablePrice(a,b){
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
 const SUPPORTED_CATEGORIES=[...PRICE_CATEGORIES,"Leisten"];
 const isFloor=p=>p&&PRICE_CATEGORIES.includes(p.category);
-const isSkirtingName=name=>/(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(String(name||""));
+const isSkirtingName=name=>{
+ const text=String(name||"");
+ return /(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(text)&&
+  !/^(?:montagekleber|kleber|dämmung|trittschall|unterlage|reiniger|abschlussprofil|übergangsprofil|pflege)/i.test(text)&&
+  !/^(?:laminat|vinyl|rigid|parkett|designboden)\b.*\b(?:inklusive|inkl\.?|mit)\s+.{0,45}(?:fuß|fuss|sockel)[-\s]?leisten?/i.test(text);
+};
 const isSupported=p=>p&&(SUPPORTED_CATEGORIES.includes(p.category)||
  (p.category==="Zubehör"&&isSkirtingName(p.name)));
 const normalizedItem=p=>p?.category==="Zubehör"&&isSkirtingName(p.name)?
