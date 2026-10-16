@@ -48,8 +48,9 @@ function boot(withProducts=true,mockFetch=async()=>{throw Error("Network not exp
   readAsDataURL(file){this.result=file.data;this.onload();}
   readAsText(file){this.result=file.content;this.onload();}
  }
- new Function("document","window","localStorage","navigator","FileReader","fetch",exposed)(
-  document,window,localStorage,{clipboard:{}},FakeFileReader,mockFetch);
+ class FakeAbortController{constructor(){this.signal={};}abort(){}}
+ new Function("document","window","localStorage","navigator","FileReader","fetch","AbortController",exposed)(
+  document,window,localStorage,{clipboard:{}},FakeFileReader,mockFetch,FakeAbortController);
  return {window,state:window.__marketRadarTest.state,api:window.__marketRadarTest,
   elements,localStorage,document,values};
 }
