@@ -51,7 +51,7 @@ function boot(withProducts=true){
 }
 test("Dashboard boots with available shop products and no network requests",()=>{
  const app=boot();
- assert.equal(app.elements.get("bestPriceGrid").children.length,4);
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
  assert.equal(app.elements.get("shopCoverage").children.length,1);
  assert.equal(app.state.shops.length,2);
 });
@@ -107,10 +107,33 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:3/);
+ assert.match(source,/engineVersion:4/);
  assert.match(source,/for\(let round=0;round<rounds;round\+\+\)/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
  assert.equal(app.state.shops[1].items.length,1);
  assert.match(source,/const KEY="marktradar:catalog:v3"/);
+});
+
+
+test("Only three supported floor categories appear in dropdown and radar",()=>{
+ const app=boot();
+ assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+ assert.match(html,/Vinyl \/ Rigid-Vinyl/);
+ assert.doesNotMatch(html,/<option[^>]*>Teppich<\/option>/i);
+ assert.doesNotMatch(html,/<option[^>]*>PVC<\/option>/i);
+ assert.doesNotMatch(html,/<option[^>]*>Zubehör<\/option>/i);
+ assert.doesNotMatch(html,/<option[^>]*>Bioboden/i);
+});
+test("Legacy unsupported products remain saved but are excluded from dashboards",()=>{
+ const app=boot();
+ const shop=app.state.shops[0];
+ shop.items.push({name:"PVC-Boden",url:"https://laminatdepot.de/pvc",price:4.99,unit:"m²",category:"PVC"});
+ shop.items.push({name:"Teppich",url:"https://laminatdepot.de/teppich",price:2.99,unit:"m²",category:"Teppich"});
+ app.api.render();
+ const metrics=app.elements.get("metrics");
+ const text=el=>[el.textContent||"",...(el.children||[]).map(text)].join(" ");
+ assert.match(text(metrics),/2/);
+ assert.doesNotMatch(text(app.elements.get("bestPriceGrid")),/2,99/);
+ assert.equal(shop.items.length,3); // historical storage is retained
 });
