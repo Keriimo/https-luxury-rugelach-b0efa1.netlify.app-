@@ -104,21 +104,21 @@ function typeOf(text){
 }
 function nameClean(text){return trim(text).replace(/^[45][,.]\d\s*\(\d+\)\s*/,"").slice(0,160);}
 function attrs(text,name){
- const t=(name+" "+text).slice(0,7000);
+ const t=(name+" "+text).slice(0,20000);
  const thick=t.match(/(?:Stärke|Gesamtdicke|Dicke)\s*:?\s*(\d+(?:[,.]\d+)?)\s*mm/i)
    ||t.match(/(\d+(?:[,.]\d+)?)\s*mm\s*(?:stark|dick|Stärke)/i)
    ||name.match(/(\d+(?:[,.]\d+)?)\s*mm/i);
  const wear=t.match(/Nutzschicht(?:stärke)?\s*:?\s*(\d+(?:[,.]\d+)?)\s*mm/i);
  const nk=t.match(/(?:NK|Nutzungsklasse)\s*:?\s*(\d{2})\b/i);
  const ac=t.match(/\bAC\s*([3-6])\b/i);
- const pack=t.match(/(?:Paketinhalt|Paketfläche|Paket\s*enthält|Inhalt\s*je\s*Paket)\s*:?\s*(\d+(?:[,.]\d+)?)\s*(?:m²|m2|qm)/i);
+ const pack=t.match(/(?:Paketinhalt|Paketfläche|Paket\s*enthält|Inhalt(?:\s*je\s*Paket)?)\s*:?\s*(\d+(?:[,.]\d+)?)\s*(?:m²|m2|qm)/i);
  return {thickness:thick?number(thick[1]):null,wear:wear?number(wear[1]):null,
   nk:nk?nk[1]:null,ac:ac?"AC"+ac[1]:null,packM2:pack?number(pack[1]):null,
   insulation:/inklusive\s+(?:trittschall)?dämmung|mit\s+trittschalldämmung/i.test(t),
   skirting:/inklusive\s+(?:fuß|fuss|sockel)leiste/i.test(t)};
 }
 function meterPrice(text,structured,pack){
- const t=clean(text).slice(0,8500);
+ const t=clean(text).slice(0,55000);
  const patterns=[
   /(?:Aktionspreis|Angebotspreis|Preis|Grundpreis)\s*(?:pro\s*)?(?:m²|m2|qm)\s*[:|–\-\s]*(\d{1,4}(?:[,.]\d{2}))\s*€/gi,
   /(\d{1,4}(?:[,.]\d{2}))\s*€\s*(?:\/|je|pro)\s*(?:m²|m2|qm)/gi,
@@ -187,10 +187,17 @@ function detail(html,site,url){
  const title=nameClean(ld?.name||strip(h?.[1])||decode(og?.[1])||"");
  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
  const content=main?main[1]:html.slice(Math.max(0,html.indexOf(h?.[0]||"")||0));
- const text=strip(content).slice(0,12000);
+ const text=strip(content).slice(0,65000);
  const category=typeOf(title)||typeOf([ld?.category||"",ld?.description||"",text.slice(0,450)].join(" "));
  if(!title||title.length<5||!category)return null;
  const extra=attrs(text,title),price=meterPrice(text,ld,extra.packM2);
+ if(price.price===null&&extra.packM2){
+  const packageAmount=text.match(/Paketpreis\s*:?\s*(\d{1,4}(?:[,.]\d{2}))\s*€[^\d]{0,25}(?:\||\s)\s*Inhalt\s*:?\s*(\d+(?:[,.]\d+)?)\s*m²/i);
+  if(packageAmount&&number(packageAmount[2])===extra.packM2&&extra.packM2>=0.1&&extra.packM2<=15){
+   price.price=Math.round(number(packageAmount[1])/extra.packM2*100)/100;
+   price.priceSource="Paketpreis / Paketfläche (berechnet)";
+  }
+ }
  return {name:title,url,category,...extra,...price,brand:trim(ld?.brand?.name||""),
   sku:trim(ld?.sku||ld?.gtin13||ld?.gtin||""),sourcePage:url,
   checkedAt:new Date().toISOString(),verified:price.price!==null};
@@ -218,14 +225,15 @@ function isCategory(url,label){
  return false;
 }
 function listingProduct(href,label){
- const title=nameClean(label).slice(0,155);
+ const title=nameClean(label.split(/\s+(?:statt|Komplett-Set|Komplettpreis|Du sparst|Paketpreis)\b/i)[0]
+   .replace(/\s+\d{1,4}[,.]\d{2}\s*€.*$/,"")).slice(0,155);
  const category=typeOf(title);
  if(!category||title.length<8)return null;
  // Prices must be printed next to this product, never borrowed from unrelated
  // page navigation, recommendations, or another product card.
  const price=meterPrice(label,null,null),features=attrs(label,title);
  return {name:title,url:href,category,...features,...price,
-   sourcePage:"Katalogvorschau",checkedAt:new Date().toISOString(),
+   sourcePage:href,checkedAt:new Date().toISOString(),
    verified:price.price!==null,provisional:true};
 }
 function list(html,site,url){
