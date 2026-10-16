@@ -43,7 +43,7 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance,compareNow};})();');
  class FakeFileReader{
   readAsDataURL(file){this.result=file.data;this.onload();}
   readAsText(file){this.result=file.content;this.onload();}
@@ -113,7 +113,7 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:7/);
+ assert.match(source,/engineVersion:8/);
  assert.match(source,/for\(let round=0;round<rounds&&/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
@@ -170,7 +170,7 @@ test("Browser full scan is bounded, resumable and supports stopping",()=>{
 test("Unpriced saved products will be revisited in scanner v5",()=>{
  assert.match(source,/previous\.filter\(p=>p\?\.url&&isSupported\(p\)&&!priceAvailable\(normalizedItem\(p\)\)\)/);
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
- assert.match(source,/if\(saved&&saved\.engineVersion!==7\)saved=null/);
+ assert.match(source,/if\(saved&&saved\.engineVersion!==8\)saved=null/);
 });
 
 test("An unavailable optional Shopify feed never counts as a shop-wide failure",()=>{
@@ -318,4 +318,61 @@ test("SVG or oversized logo uploads are rejected",()=>{
  app.elements.get("editorLogo").onchange();
  app.elements.get("editorSave").click();
  assert.equal(JSON.parse(app.values.get("marktradar:appearance:v1")).logo,"");
+});
+
+test("Three KPI cards show lowest known prices for laminate, vinyl and parquet",()=>{
+ const app=boot();
+ const items=app.state.shops[0].items;
+ items.push({name:"Rigid Vinyl Eiche",category:"Vinyl",price:16.99,unit:"m²",
+   url:"https://laminatdepot.de/rigid-eiche"});
+ items.push({name:"Parkett Eiche",category:"Parkett",price:39.99,unit:"m²",
+   url:"https://laminatdepot.de/parkett-eiche"});
+ app.api.render();
+ const cards=app.elements.get("metrics").children;
+ assert.equal(cards.length,3);
+ const content=n=>[n.textContent||"",...(n.children||[]).map(content)].join(" ");
+ assert.match(content(cards[0]),/Laminat/);
+ assert.match(content(cards[0]),/13,99/);
+ assert.match(content(cards[1]),/Vinyl \/ Rigid-Vinyl/);
+ assert.match(content(cards[1]),/16,99/);
+ assert.match(content(cards[2]),/Parkett/);
+ assert.match(content(cards[2]),/39,99/);
+});
+test("All captured floor products appear by default even when there are more than 400",()=>{
+ const app=boot();
+ const shop=app.state.shops[0];
+ shop.items=Array.from({length:425},(_,i)=>({name:"Laminat Eiche "+i,
+  url:"https://laminatdepot.de/laminat-"+i,category:"Laminat",price:null,unit:"m²"}));
+ shop.items.push({name:"Fußleiste",category:"Zubehör",price:1.99,url:"https://laminatdepot.de/leiste"});
+ app.state.tab="products";app.state.query="";app.state.category="";
+ app.api.render();
+ const tbody=app.elements.get("tableHolder").children[0].children[1];
+ assert.equal(tbody.children.length,426); // 425 depot and one Shop24, never Zubehör
+ assert.equal(app.state.limit,12000);
+});
+test("Explicit compare action renders technical table from both dropdowns",()=>{
+ const app=boot();
+ app.state.tab="comparison";app.api.render();
+ const left=app.elements.get("compareProductA"),right=app.elements.get("compareProductB");
+ left.value="0";left.onchange();
+ right.value="0";right.onchange();
+ assert.equal(app.elements.get("compareNow").disabled,false);
+ app.elements.get("compareNow").click();
+ const rendered=el=>[el.textContent||"",...(el.children||[]).map(rendered)].join(" ");
+ const content=rendered(app.elements.get("manualComparisonHolder"));
+ assert.match(content,/Laminat DEPOT/);
+ assert.match(content,/Laminat-Shop24/);
+ assert.match(content,/Nutzungsklasse/);
+ assert.match(content,/AC4/);
+ assert.match(content,/Nicht erfasst/);
+ assert.match(content,/13,99/);
+});
+test("Full shop dropdown is not cut at 300 and supports 430+ entries",()=>{
+ const app=boot();
+ app.state.shops[0].items=Array.from({length:450},(_,i)=>({
+  name:"Laminat Produkt "+i,url:"https://laminatdepot.de/"+i,category:"Laminat",
+  price:null,unit:"m²"}));
+ app.state.tab="comparison";app.api.render();
+ const select=app.elements.get("compareProductA");
+ assert.equal(select.children.length,451);
 });
