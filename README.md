@@ -1,4 +1,15 @@
-# MarktRadar 5.7 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.8 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.8 – Bodenarten-Bestpreise, volle Produktliste und Vergleichsstart
+
+- **Drei Bestpreis-Kennzahlen anstelle der alten Zahlenkarten:** Laminat, Vinyl/Rigid-Vinyl und Parkett mit niedrigstem **erfasstem €/m²-Preis**, Angebotslink und zugehörigem Shop. Fehlt ein verifizierbarer Preis, erscheint keine erfundene Zahl.
+- **Standard „Alle erfassten · alle Shops“:** Nicht länger nur Top 20; alle vorhandenen Bodenprodukte werden angezeigt und nach Kategorie/Suchbegriff gefiltert. Die bisherige maximale Vorschau von 300 Artikeloptionen im 2-Produkte-Vergleich wurde entfernt.
+- **2-Produkte-Check:** Links und rechts jeweils Shop und konkreten Artikel wählen, dann **„Jetzt beide Produkte vergleichen“** anklicken. Die technische Gegenüberstellung enthält Produkt, Bodenart, Marke, Artikelnummer, Stärke, Nutzschicht, NK/AC und Preise, sofern erfasst. Fehlt ein Preis, findet die technische Gegenüberstellung dennoch statt; der Preisvorteil bleibt unbekannt.
+- **Katalogsuche Laminat DEPOT:** Die öffentlich verfügbaren Verzeichnisse `/alleboeden`, `/laminat`, `/vinylboeden` und `/parkett` werden beim neuen Scan ausdrücklich als Startseiten genutzt. Erkennbare Pagination mit deutschen Linkbezeichnungen wird verfolgt. Die gespeicherte Scan-Warteschlange wird aufgrund des Engine-Wechsels auf v8 erneuert, ohne bereits erfasste Artikel zu löschen.
+- **Keine Zubehörartikel:** Nach wie vor nur Laminat, Vinyl/Rigid-Vinyl und Parkett. Schon anhand des Links erkennbare Leisten, Trittschalldämmung und Kleber werden nicht eigens abgerufen. Historisch gespeicherte andere Produkte bleiben unverändert archiviert, werden aber nicht angezeigt.
+- **Browserressourcen:** Bei großen Tabellen wird während langer Scans nur periodisch die Benutzeroberfläche aktualisiert, während Zwischenergebnisse weiterhin gespeichert werden. Die lokale Ersatzsicherung reduziert die Produktzahl nicht mehr heimlich auf 500; sie hängt weiterhin vom Browser-Speicherplatz ab, die vollständige Speicherung erfolgt bevorzugt in IndexedDB.
+- **Grenzen:** „Alle erfassten“ bedeutet alle gefundenen Daten, nicht die vollständige Produktpalette jedes externen Shops. Offene Aufgaben, Zugriffssperren und kostenlose Abrufkontingente müssen weiterhin ausdrücklich berücksichtigt werden.
+
 
 ## MarktRadar 5.7 – Transparenter Vergleich, Shop-Mix & Designstudio
 
