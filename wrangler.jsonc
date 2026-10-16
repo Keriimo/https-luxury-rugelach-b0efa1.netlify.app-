@@ -1,0 +1,12 @@
+{
+  "name": "https-luxury-rugelach-b0efa1-netlify-app",
+  "main": "./worker.js",
+  "compatibility_date": "2026-10-16",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  }
+}
