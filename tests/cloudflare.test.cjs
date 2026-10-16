@@ -363,3 +363,40 @@ test("Flooring sold with included underlay remains discoverable",()=>{
  assert.equal(item.category,"Laminat");
  assert.equal(item.price,12.99);
 });
+
+test("Exact shop product SELITAC 2,2mm folding underlay is not a laminate floor",()=>{
+ const site=x.safeShop("https://laminat-shop24.com/");
+ const name="SELITAC® 2,2 mm Faltplatte für Laminat";
+ const url=site.root+"products/selitac-r-2-2-mm-faltplatte-fur-laminat";
+ assert.equal(x.typeOf(name),null);
+ assert.equal(x.typeOf("SELITAC® 5 mm Faltplatte für Laminat"),null);
+ assert.equal(x.checkedLink(site,url),url);
+ const card=x.list('<a href="/products/selitac-r-2-2-mm-faltplatte-fur-laminat">'+
+  name+' 1,99 €/m²</a><a href="/products/laminat-eiche-8mm">Laminat Eiche 8 mm</a>',
+  site,site.root+"collections/all");
+ assert.equal(card.urls.length,1);
+ assert.equal(card.products.length,1);
+ assert.equal(card.products[0].name,"Laminat Eiche 8 mm");
+ const ld=JSON.stringify({"@type":"Product",name,category:"Laminat",
+  offers:{price:"1.99",priceSpecification:{unitCode:"MTK"}}});
+ const product=x.detail('<html><script type="application/ld+json">'+ld+
+  '</script><main><h1>'+name+'</h1><p>Preis m²: 1,99 €</p></main></html>',
+  site,url);
+ assert.equal(product,null);
+ const shopifyResult=x.shopify(site,{products:[{title:name,
+  handle:"selitac-r-2-2-mm-faltplatte-fur-laminat",product_type:"Laminat",
+  variants:[{price:"1.99"}]}]});
+ assert.equal(shopifyResult.products.length,0);
+});
+test("Underlay products without Dämmung in title are still rejected",()=>{
+ const names=[
+  "SELITBLOC® 1 mm GripTec für Klick-Vinyl",
+  "SELITAC® 5 mm Faltplatte für Laminat",
+  "Sound Eliminator 15m² für Laminat",
+  "Acoustic Board Basic für Parkett",
+  "Faltplatte für Laminat 2,2 mm",
+  "PE-Dampfbremsfolie für Laminat"
+ ];
+ for(const title of names)assert.equal(x.typeOf(title),null,title);
+ assert.equal(x.typeOf("Laminat Eiche 8 mm inklusive Dämmung"),"Laminat");
+});
