@@ -51,7 +51,7 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"balanced",busy:false,stopRequested:false,manualCompare:[],compareShops:{A:"",B:""},compareSearch:{A:"",B:""}};
 const APPEARANCE_KEY="marktradar:appearance:v1";
 const STANDARD_STYLE={
  brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
@@ -338,6 +338,24 @@ function filteredItems(onlyOffers=false){
   (!state.category||p.category===state.category)&&
   (onlyOffers?Boolean(p.promotion):(!state.promo||(state.promo==="yes"?Boolean(p.promotion):!p.promotion)))
  );
+ if(state.sort==="balanced"){
+  const shops=state.shops.filter(sh=>sh.active).map(sh=>sh.id);
+  const groups=new Map(shops.map(id=>[id,[]]));
+  for(const item of list)groups.get(item.shopId)?.push(item);
+  for(const items of groups.values())items.sort((a,b)=>
+   Number(validPrice(b))-Number(validPrice(a))||(a.price??Infinity)-(b.price??Infinity));
+  const mixed=[];let index=0;
+  while(mixed.length<list.length){
+   let added=false;
+   for(const id of shops){
+    const item=groups.get(id)?.[index];
+    if(item){mixed.push(item);added=true;}
+   }
+   if(!added)break;
+   index++;
+  }
+  list=mixed;
+ }
  if(state.sort==="price")list.sort((a,b)=>(a.price==null?1:0)-(b.price==null?1:0)||((a.price??Infinity)-(b.price??Infinity)));
  if(state.sort==="name")list.sort((a,b)=>a.name.localeCompare(b.name,"de"));
  if(state.sort==="new")list.sort((a,b)=>(b.checkedAt||"").localeCompare(a.checkedAt||""));
