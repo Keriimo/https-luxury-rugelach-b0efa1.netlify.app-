@@ -6,7 +6,7 @@ set -eu
 node --check app.js
 node --check functions/api/catalog.js
 node --check worker.js
-node --test tests/cloudflare.test.cjs tests/worker.test.cjs
+node --test tests/cloudflare.test.cjs tests/worker.test.cjs tests/ui.test.cjs
 
 mkdir -p dist
 cp index.html app.js dist/
