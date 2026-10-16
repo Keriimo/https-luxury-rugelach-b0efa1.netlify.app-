@@ -3,7 +3,7 @@ const assert=require("node:assert/strict");
 const fs=require("node:fs");
 const vm=require("node:vm");
 const file=fs.readFileSync("functions/api/catalog.js","utf8");
-const scope={URL,Response,Request,AbortController,setTimeout,clearTimeout,fetch,console};
+const scope={URL,Response,Request,AbortController,TextDecoder,setTimeout,clearTimeout,fetch,console};
 vm.createContext(scope);
 vm.runInContext(file.replace(/^export /gm,"")+
  "\nthis.helpers={safeShop,checkedLink,typeOf,meterPrice,attrs,detail,list,sitemap,shopify};",scope);
