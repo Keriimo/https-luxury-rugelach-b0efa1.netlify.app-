@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.1.0-free";
+const VERSION = "5.3.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -196,24 +196,69 @@ function detail(html,site,url){
   checkedAt:new Date().toISOString(),verified:price.price!==null};
 }
 function isProduct(url){
- const path=new URL(url).pathname;
- return /\/(products?|produkte?|artikel|p|detail|item)\//i.test(path)
-  ||/\/[^/]+\.html?$/i.test(path)
-  ||/\/(?:laminat|parkett|vinylboeden?|designboden|bodenbelag|zubehoer)\/[^/]{12,}/i.test(path);
+ const path=new URL(url).pathname.toLowerCase();
+ if(/\/(?:products?|produkte?|artikel|detail|items?|p)\//i.test(path))return true;
+ if(/\/[^/]+\.html?$/i.test(path))return true;
+ if(/\/(?:laminat|parkett|vinylboeden?|designboden|bodenbelag|zubehoer)\/[^/]{12,}/i.test(path))return true;
+ // Flat SEO product routes are common in floor shops (e.g. /laminat-eiche-100013100).
+ const slug=path.split("/").filter(Boolean).pop()||"";
+ if(/^((?:klick|klebe)[-_]?)?(?:laminat|vinyl|parkett|designboden|bioboden|korkboden|teppichboden|pvc|bodenbelag|boden)-[a-z0-9%-]{8,}/i.test(slug)&&
+  /(?:[-_]\d{5,12}|[-_][a-z0-9]{6,})$/i.test(slug))return true;
+ return false;
+}
+function isCategory(url,label){
+ const u=new URL(url);
+ const path=u.pathname.toLowerCase().replace(/\/+$/,"");
+ const segments=path.split("/").filter(Boolean);
+ if(segments.length>3)return false;
+ const cat=/(?:^|[-_/])(?:alleboeden|alle-boeden|alle-produkte|laminat|vinylboeden|vinylboden|parkett|bodenbelaege|bodenbelage|boeden|böden|designboden|bioboeden|bioboden|kork|zubehoer|zubehör|teppichboden|angebote|bodenoutlet|sale)(?:$|[-_/])/i;
+ if(cat.test(path)&&!isProduct(url))return true;
+ if(/\/collections\/[^/]+$/i.test(path))return true;
+ if(segments.length<=2&&/^(?:laminat|vinylböden?|vinylboden|parkett|bioboden|alle böden|alle produkte|zubehör|teppich|bodenbeläge|angebote|sale)$/i.test(clean(label)))return true;
+ return false;
+}
+function listingProduct(href,label){
+ const title=nameClean(label).slice(0,155);
+ const category=typeOf(title);
+ if(!category||title.length<8)return null;
+ // Prices must be printed next to this product, never borrowed from unrelated
+ // page navigation, recommendations, or another product card.
+ const price=meterPrice(label,null,null),features=attrs(label,title);
+ return {name:title,url:href,category,...features,...price,
+   sourcePage:"Katalogvorschau",checkedAt:new Date().toISOString(),
+   verified:price.price!==null,provisional:true};
 }
 function list(html,site,url){
  const urls=new Set(),next=new Set(),products=[],anchor=/<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
+ const productMap=new Map();
  let match,counter=0;
- while((match=anchor.exec(html))&&counter++<800){
+ while((match=anchor.exec(html))&&counter++<2000){
   const href=checkedLink(site,decode(match[1]),url);
   if(!href||href===url)continue;
-  const label=strip(match[2]).slice(0,110);
-  if(isProduct(href))urls.add(href);
-  else if(/(?:[?&](?:page|p|pagenumber)=\d+|\/page\/\d+|\/collections\/[^/?]+)/i.test(href) &&
-    (/weiter|next|nächste|^\d{1,3}$|›|→/i.test(label)||href.includes("/collections/")))next.add(href);
-  else if(new URL(url).pathname==="/"&&/laminat|vinyl|parkett|bodenbelag|zubehör|kork|teppich|sale|aktion/i.test(label))next.add(href);
+  const label=strip(match[2]).slice(0,700);
+  if(isProduct(href)){
+   urls.add(href);
+   const item=listingProduct(href,label);
+   if(item){
+    const previous=productMap.get(href);
+    if(!previous||(!previous.verified&&item.verified))productMap.set(href,item);
+   }
+  }else if(/(?:[?&](?:page|p|pagenumber)=\d+|\/page\/\d+)/i.test(href) &&
+    /weiter|next|nächste|^\d{1,3}$|›|→/i.test(label))next.add(href);
+  else if(isCategory(href,label))next.add(href);
  }
- return {jobs:[...next].slice(0,24).map(url=>({type:"list",url})),urls:[...urls].slice(0,500),products};
+ // rel=next may live outside visible anchor tags.
+ const rel=html.match(/<link\b(?=[^>]*rel=["']next["'])([^>]+)>/i);
+ if(rel){
+  const href=rel[1].match(/href=["']([^"']+)["']/i);
+  if(href){
+   const nextLink=checkedLink(site,decode(href[1]),url);
+   if(nextLink)next.add(nextLink);
+  }
+ }
+ for(const product of productMap.values())products.push(product);
+ return {jobs:[...next].slice(0,36).map(url=>({type:"list",url})),
+  urls:[...urls].slice(0,750),products};
 }
 function sitemap(html,site,url,offset){
  const isIndex=/<sitemapindex\b/i.test(html);
