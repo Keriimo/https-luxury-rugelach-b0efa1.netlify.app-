@@ -348,7 +348,7 @@ test("All captured floor products appear by default even when there are more tha
  app.api.render();
  const tbody=app.elements.get("tableHolder").children[0].children[1];
  assert.equal(tbody.children.length,426); // 425 depot and one Shop24, never Zubehör
- assert.equal(app.state.limit,12000);
+ assert.equal(app.state.limit,0); // 0 means no artificial row limit
 });
 test("Explicit compare action renders technical table from both dropdowns",()=>{
  const app=boot();
