@@ -4,7 +4,7 @@
   "private": true,
   "description": "Browserbasiertes kostenloses Preisradar für Laminat, Vinyl und Parkett",
   "scripts": {
-    "test": "node --test tests/cloudflare.test.cjs tests/worker.test.cjs tests/ui.test.cjs",
+    "test": "node --test tests/cloudflare.test.cjs tests/worker.test.cjs tests/ui.test.cjs tests/netlify.test.cjs",
     "build": "sh build-cloudflare.sh"
   },
   "dependencies": {
