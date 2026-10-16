@@ -211,6 +211,9 @@ function isProduct(url){
  const slug=path.split("/").filter(Boolean).pop()||"";
  if(/^((?:klick|klebe)[-_]?)?(?:laminat|vinyl|parkett|designboden|bioboden|korkboden|teppichboden|pvc|bodenbelag|boden)-[a-z0-9%-]{8,}/i.test(slug)&&
   /(?:[-_]\d{5,12}|[-_][a-z0-9]{6,})$/i.test(slug))return true;
+ // Numeric end-of-slug article identifiers, independent of the merchant's naming style.
+ if(!/\/(?:magazin|blog|ratgeber|news|presse)\//i.test(path)&&
+    /[-_]\d{7,12}(?:\.html?)?$/i.test(slug)&&slug.length>=21)return true;
  return false;
 }
 function isCategory(url,label){
