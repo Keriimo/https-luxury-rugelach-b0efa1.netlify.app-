@@ -617,6 +617,24 @@ el("addButton").onclick=addShop;
 el("scanButton").onclick=()=>scanAll(false);
 el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true);}};
 el("exportButton").onclick=downloadJson;
+async function copyFilteredTable(){
+ const rows=filteredItems();
+ if(!rows.length){setStatus("Keine Produkte im aktuellen Filter zum Kopieren.","warning");return;}
+ const safeCell=v=>String(v??"").replace(/\s+/g," ").trim().replace(/^[=+\-@\t\r]/,"' el("exportButton").onclick=downloadJson;");
+ const fields=[["Produkt",p=>p.name],["Shop",p=>p.shopName],
+  ["Kategorie",p=>p.category],["Preis",p=>p.price??""],
+  ["Einheit",p=>p.unit||""],["Stärke mm",p=>p.thickness??""],
+  ["Nutzungsklasse",p=>p.nk||""],["Abriebklasse",p=>p.ac||""],
+  ["Werbeaktion",p=>p.promotion||""],["Letzte Preisprüfung",p=>p.priceCheckedAt||p.checkedAt||""],
+  ["Produktlink",p=>p.url]];
+ const data=[fields.map(f=>f[0]).join("\t"),...rows.map(p=>fields.map(f=>safeCell(f[1](p))).join("\t"))].join("\n");
+ try{
+  await navigator.clipboard.writeText(data);
+  setStatus(rows.length+" gefilterte Zeilen kopiert. Du kannst sie jetzt in Excel Online einfügen.","ok");
+ }catch(e){setStatus("Die Browser-Berechtigung zum Kopieren wurde verweigert. Bitte Clipboard-Zugriff erlauben.","warning");}
+}
+
+el("copyButton").onclick=copyFilteredTable;
 el("productSearch").oninput=e=>{state.query=e.target.value;render();};
 el("category").onchange=e=>{state.category=e.target.value;render();};
 el("promotions").onchange=e=>{state.promo=e.target.value;render();};
