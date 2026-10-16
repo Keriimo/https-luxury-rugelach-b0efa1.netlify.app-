@@ -922,7 +922,7 @@ async function scanShop(shop,restart,quick=false){
    const found=await api(shop.url,"discover");
    const jobs=found.jobs||[];
    const unpriced=previous.filter(p=>p?.url&&isSupported(p)&&!priceAvailable(normalizedItem(p))).map(p=>p.url);
-   saved={engineVersion:7,
+   saved={engineVersion:9,
     jobs:[...jobs.filter(j=>j.type==="list"),...jobs.filter(j=>j.type!=="list")],
     urls:[...new Set([...unpriced,...(found.urls||[])])],visitedJobs:[],visitedUrls:[],
     pages:0,done:0,failures:0,other:0,errors:[],retryCounts:{},unresolved:[],truncated:false};
