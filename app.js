@@ -51,7 +51,53 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,manualCompare:[]};
+const APPEARANCE_KEY="marktradar:appearance:v1";
+const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
+ subtitle:"Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²",
+ accent:"#e5233f",hero:"#15233a"};
+let appearance={...STANDARD_STYLE};
+const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
+const heroOptions=["#15233a","#101827","#ffffff"];
+function loadAppearance(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(APPEARANCE_KEY)||"null");
+  if(saved&&typeof saved==="object"){
+   for(const key of ["brand","title","subtitle"])
+    if(typeof saved[key]==="string"&&saved[key].trim())appearance[key]=saved[key].slice(0,key==="subtitle"?130:80);
+   if(accentOptions.includes(saved.accent))appearance.accent=saved.accent;
+   if(heroOptions.includes(saved.hero))appearance.hero=saved.hero;
+  }
+ }catch(e){}
+ updateAppearance();
+}
+function updateAppearance(){
+ document.documentElement.style.setProperty("--accent",appearance.accent);
+ document.documentElement.style.setProperty("--hero",appearance.hero);
+ el("brandLabel").textContent=appearance.brand;
+ el("pageHeading").textContent=appearance.title;
+ el("pageSubtitle").textContent=appearance.subtitle;
+ document.title=appearance.title+" · MarktRadar";
+ el("editorBrand").value=appearance.brand;
+ el("editorTitle").value=appearance.title;
+ el("editorSubtitle").value=appearance.subtitle;
+ el("editorAccent").value=appearance.accent;
+ el("editorTheme").value=appearance.hero;
+ el("hero").classList.toggle("light",appearance.hero==="#ffffff");
+}
+function saveAppearance(){
+ const brand=neat(el("editorBrand").value).slice(0,65);
+ const title=neat(el("editorTitle").value).slice(0,80);
+ const subtitle=neat(el("editorSubtitle").value).slice(0,130);
+ if(!brand||!title){setStatus("Bitte eine Marken-Zeile und Überschrift eingeben.","warning");return;}
+ appearance={brand,title,subtitle:subtitle||STANDARD_STYLE.subtitle,
+  accent:accentOptions.includes(el("editorAccent").value)?el("editorAccent").value:STANDARD_STYLE.accent,
+  hero:heroOptions.includes(el("editorTheme").value)?el("editorTheme").value:STANDARD_STYLE.hero};
+ try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(appearance));}catch(e){setStatus("Darstellung konnte nicht gespeichert werden. Browserspeicher prüfen.","warning");return;}
+ updateAppearance();
+ el("appearancePanel").hidden=true;
+ setStatus("Darstellung für diesen Browser gespeichert. Scanner und Preise unverändert.","ok");
+}
 const showEuro=n=>Number.isFinite(n)?n.toLocaleString("de-DE",{style:"currency",currency:"EUR"}):"–";
 const now=()=>new Date().toLocaleString("de-DE");
 const neat=s=>String(s||"").trim();
