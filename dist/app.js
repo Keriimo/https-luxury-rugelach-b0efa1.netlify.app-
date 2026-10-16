@@ -446,11 +446,18 @@ function hasComparablePrice(a,b){
 
 const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett"];
 const SUPPORTED_CATEGORIES=PRICE_CATEGORIES;
-const ACCESSORY_IN_TITLE=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|trittschall|unterlage|unterboden|wärmedämmung|waermedaemmung|isoliermatte|fußleisten?|fussleisten?|sockelleisten?|kleber|reiniger|abschlussprofil|übergangsprofil|uebergangsprofil|pflegeprodukt|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag)/i;
+const ACCESSORY_IN_TITLE=/(?:dämmung|daemmung|dammung|dämmmatte|daemmmatte|dämmplatte|daemmplatte|dämmvlies|daemmvlies|trittschall|unterlage|unterboden|unterlagsmatte|wärmedämmung|waermedaemmung|isoliermatte|verlegezubehör|verlegezubehoer|fußleisten?|fussleisten?|sockelleisten?|kleber|reiniger|abschlussprofil|übergangsprofil|uebergangsprofil|pflegeprodukt|schiene|teppichboden|teppichfliese|auslegware|nadelfilz|linoleum|bioboden|bio-boden|korkboden|pvc-boden|pvcbelag|cv-belag|falt[-\s]?(?:platte|platten|matte|matten|unterlage)|dampfbrems(?:folie|e)|dampfsperr(?:folie|e)|feuchtesperre|akustikmatte|schaumunterlage|selit(?:ac|bloc|pro|flex|eco|style|stop)\b|sound[-\s]?eliminator\b|acoustic[-\s]?board\b)/i
 const FLOOR_TITLE_FIRST=/^(?:(?:klick|klebe)[-\s]?)?(?:laminat(?:boden)?|vinyl(?:boden)?|rigid[-\s]?vinyl|parkett|designboden|spc[-\s]?boden|lvt[-\s]?boden)\b/i;
 function looksLikeFloorProduct(p){
  const name=String(p?.name||"").toLowerCase();
  if(!name)return false;
+ // Product urls are retained with imported and older cached catalogs. Use
+ // the product slug as a second signal when the name alone is ambiguous.
+ const slug=String(p?.url||"").split(/[?#]/)[0].split("/").filter(Boolean).pop()||"";
+ const normalizedSlug=slug.replace(/[-_]/g," ").toLowerCase();
+ if(ACCESSORY_IN_TITLE.test(normalizedSlug)&&
+    !(FLOOR_TITLE_FIRST.test(name)&&
+      /(?:\bmit\b|\binklusive\b|\binkl\.|\binkl\b)/i.test(name)))return false;
  if(!ACCESSORY_IN_TITLE.test(name))return true;
  return FLOOR_TITLE_FIRST.test(name)&&
   /(?:\bmit\b|\binklusive\b|\binkl\.|\binkl\b|\bintegrierter?\b|\binkludiert\b)/i.test(name);
