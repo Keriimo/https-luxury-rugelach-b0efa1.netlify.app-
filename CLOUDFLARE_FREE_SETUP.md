@@ -89,3 +89,7 @@ Nach erfolgreichem Cloudflare-Deploy: mit Strg+F5 aktualisieren und Version 5.7 
 ## 5.8 – Erfasste Bodenbeläge und echte Vergleiche
 
 Nach Cloudflare Ready Seite mit Strg+F5 neu laden: drei Kennzahlen „Laminat“, „Vinyl/Rigid-Vinyl“, „Parkett“, in der Produktliste Standard „Alle erfassten · alle Shops“, Filter für nur drei Bodenarten. Im „2-Produkte-Check“ beide Shop-/Artikelauswahlen festlegen und „Jetzt beide Produkte vergleichen“ anklicken. Ohne DEPOT-Preis trotzdem technische Eigenschaften; fehlender Preis bleibt unbestimmt. Bei größeren Katalogen den automatisch fortsetzbaren Scan bei geöffnetem Browser nutzen. Cloudflare und Shop-Zugriffe können volle Abdeckung begrenzen.
+
+## MarktRadar 5.9 – Automatik und eigenes Design
+
+Nach erfolgreichem Cloudflare-Deploy: Strg+F5 und oben „Version 5.9“ prüfen. „Automatische Produktprüfung“ ist standardmäßig eingeschaltet; gewünschtes Intervall (30/60/180 Minuten) wählen, bei Bedarf per Checkbox ausschalten. Der Browser muss geöffnet und der Tab sichtbar bleiben. Unter „Designstudio öffnen“ Logo, Farben, Schriften, Textgrößen, Abstände und Breite bearbeiten. „Logo sofort entfernen“ löscht die Logodatei unmittelbar aus der gespeicherten Darstellung. Während eines Scans bleiben nicht verfügbare Produkte sichtbar als unvollständig, statt einen Komplettscan vorzutäuschen. Die Backend-API bleibt unter /api/catalog; kein zusätzlicher kostenpflichtiger Dienst erforderlich.
