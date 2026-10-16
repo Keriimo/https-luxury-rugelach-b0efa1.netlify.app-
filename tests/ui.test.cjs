@@ -167,3 +167,14 @@ test("Unpriced saved products will be revisited in scanner v5",()=>{
  assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
  assert.match(source,/if\(saved&&saved\.engineVersion!==5\)saved=null/);
 });
+
+test("An unavailable optional Shopify feed never counts as a shop-wide failure",()=>{
+ assert.match(source,/if\(job\.type==="shopify"\)\{\s*scan\.visitedJobs\.add\(key\);/);
+ assert.match(source,/optional shortcut/);
+});
+test("Failed product pages are retried but ultimately counted as unresolved",()=>{
+ assert.match(source,/scan\.retryCounts\[url\]=times/);
+ assert.match(source,/times<3/);
+ assert.match(source,/scan\.unresolved\.push\(url\)/);
+ assert.match(source,/Produktseiten nicht prüfbar/);
+});
