@@ -1,4 +1,4 @@
-# MarktRadar 5.3 – kostenlos bei Cloudflare Pages
+# MarktRadar 5.4 – kostenlos bei Cloudflare Pages
 
 **Ohne Downloads oder Installationen auf dem Firmenlaptop.** Die Veröffentlichung läuft vollständig über den Browser. Keine kostenpflichtigen APIs und keine Kreditkarte erforderlich, wenn Cloudflare die Free-Registrierung ohne Zahlungsdaten ermöglicht.
 
@@ -11,7 +11,7 @@
 5. **Build command**: `sh build-cloudflare.sh`.
 6. **Build output directory / Publish directory**: `dist`.
 7. Speichern und veröffentlichen. Cloudflare erzeugt eine neue Adresse unter `*.pages.dev`.
-8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.3.0-free"` erscheinen.
+8. Zum Prüfen die neue Adresse um `/api/catalog` erweitern: Es muss JSON mit `"ok":true` und `"version":"5.4.0-free"` erscheinen.
 9. MarktRadar öffnen und den Button **Verbindung prüfen** klicken. Anschließend mit nur einem Shop einen kleinen Scan starten.
 
 **Wichtig:** Die alte Netlify-Adresse wird durch die Veröffentlichung bei Cloudflare NICHT automatisch aktualisiert. Kollegen benötigen später den neuen Cloudflare-Link.
@@ -66,6 +66,10 @@ Der Quellcode liegt in einem **öffentlichen GitHub-Repository**. Bitte hier kei
 - Kein automatisches Überschreiten von Gratis-Tarifen wird bewusst eingerichtet. Der Client limitiert den eigenen Browser auf 180 API-Aufrufe pro UTC-Tag; das **Cloudflare-Gesamtkontingent** gilt zusätzlich für alle Nutzer gemeinsam.
 - Das Produktmatching ist regelbasiert und nur ein Vorschlag, keine KI-gestützte bestätigte Gleichwertigkeit.
 
-## MarktRadar 5.3
+## MarktRadar 5.4
 
 Der neue Reiter „Preisduell & 2er-Check“ ersetzt die fehleranfällige automatische Gleichsetzung ähnlicher Produkte. Allgemeine Kategorie-Bestpreise können unterschiedlich ausgestattete Produkte betreffen. Zum technischen Gegenüberstellen zwei konkrete Produkte manuell auswählen. Der Scan entdeckt unter anderem flache Produkt-URLs und übernimmt klar ausgewiesene Listenpreise mit einem Hinweis auf die vorläufige Quelle. Bisherige Browser-Katalogdaten bleiben erhalten; die Warteschlange wird nach dem Update automatisch erneuert.
+
+## 5.4 – Produktabdeckung prüfen
+
+Beim erneuten Scan werden ältere Scan-Warteschlangen aktualisiert. Gespeicherte Produkte bleiben erhalten; nur Laminat, Vinyl/Rigid-Vinyl und Parkett werden angezeigt. Für große Shops „Scan vertiefen / fortsetzen“ verwenden. Der erfasste Produktbestand kann über 200 hinauswachsen, sofern Produktlisten oder Sitemaps erreichbar sind und kostenlose Abrufgrenzen noch verfügbar sind. Der Scanner stoppt spätestens nach 210 Sekunden pro vertieftem Start und speichert Zwischenergebnisse für den nächsten Durchgang.
