@@ -440,14 +440,14 @@ function renderManualComparison(){
  }
  const a=state.manualCompare[0],b=state.manualCompare[1];
  const unitCheck=hasComparablePrice(a,b),sameCategory=a.category===b.category;
- const card=node("div","detail-box");
+ const card=node("div","manual-card");
  const title=node("h3",null,"Manuell ausgewählter Produktvergleich");
  card.append(title);
  const info= !sameCategory?"Unterschiedliche Bodenarten – kein gleichwertiger Vergleich.":
   !unitCheck?"Einer oder beide Preise fehlen beziehungsweise besitzen unterschiedliche Einheiten. Kein Preisvorteil berechnet.":
   "Beide Preise sind pro "+a.unit+" erfasst; technische Unterschiede bitte einzeln prüfen.";
  card.append(node("p","notice",info));
- comparisonDetail({a,b},card);
+ const detail=node("div","detail-box");comparisonDetail({a,b},detail);card.append(detail);
  if(unitCheck){
   const difference=Math.abs(a.price-b.price);
   const cheaper=a.price===b.price?"Gleicher Preis":a.price<b.price?a.shopName+" günstiger":b.shopName+" günstiger";
@@ -469,7 +469,7 @@ function tableHeader(tr,headers){for(const h of headers)tr.append(node("th",null
 function renderProducts(){
  const box=el("tableHolder");box.replaceChildren();
  const table=node("table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
- tableHeader(tr,["Produkt","Shop","Kategorie","Stärke","NK / AC","Preis","Aktion","Quelle"]);
+ tableHeader(tr,["Produkt","Shop","Kategorie","Stärke","NK / AC","Preis","Aktion","Quelle","Auswahl"]);
  thead.append(tr);
  for(const p of filteredItems()){
   const row=node("tr");
@@ -489,9 +489,13 @@ function renderProducts(){
    node("td",null,p.thickness!=null?p.thickness+" mm":"–"),
    node("td",null,[p.nk?"NK "+p.nk:null,p.ac].filter(Boolean).join(" / ")||"–"),
    priceCell,node("td",null,p.promotion||"–"));
-  const source=node("td"),a=node("a",null,"Angebot ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";source.append(a);row.append(source);tbody.append(row);
+  const source=node("td");source.append(productLink(p,"Angebot ↗"));row.append(source);
+  const choice=node("td");
+  const selected=state.manualCompare.some(x=>x.shopId===p.shopId&&x.url===p.url);
+  const action=btn(selected?"Abwählen":"Vergleichen",()=>toggleManualProduct(p),selected?"active":"secondary");
+  choice.append(action);row.append(choice);tbody.append(row);
  }
- if(!tbody.children.length){const row=node("tr"),td=node("td",null,"Keine Produkte für die gewählten Filter. Prüfe die Shop-Auswahl oder starte einen Scan.");td.colSpan=8;row.append(td);tbody.append(row);}
+ if(!tbody.children.length){const row=node("tr"),td=node("td",null,"Keine Produkte für die gewählten Filter. Prüfe die Shop-Auswahl oder starte einen Scan.");td.colSpan=9;row.append(td);tbody.append(row);}
  table.append(thead,tbody);box.append(table);
 }
 function featureRow(table,label,a,b){
@@ -502,21 +506,29 @@ function comparisonDetail(pair,box){
  const t=node("table","detail"),heading=node("tr");
  tableHeader(heading,["Merkmal",pair.a.shopName,pair.b.shopName]);t.append(heading);
  featureRow(t,"Produkt",pair.a.name,pair.b.name);
- featureRow(t,"Preis je "+pair.a.unit,showEuro(pair.a.price),showEuro(pair.b.price));
+ featureRow(t,"Preis je Verkaufseinheit",
+  priceAvailable(pair.a)?showEuro(pair.a.price)+" /"+pair.a.unit:"Nicht erfasst",
+  priceAvailable(pair.b)?showEuro(pair.b.price)+" /"+pair.b.unit:"Nicht erfasst");
  featureRow(t,"Stärke",pair.a.thickness!=null?pair.a.thickness+" mm":null,pair.b.thickness!=null?pair.b.thickness+" mm":null);
  featureRow(t,"Nutzschicht",pair.a.wear!=null?pair.a.wear+" mm":null,pair.b.wear!=null?pair.b.wear+" mm":null);
  featureRow(t,"Nutzungsklasse",pair.a.nk?("NK "+pair.a.nk):null,pair.b.nk?("NK "+pair.b.nk):null);
  featureRow(t,"Abriebklasse",pair.a.ac,pair.b.ac);
  featureRow(t,"Dämmung laut Beschreibung",pair.a.insulation?"Erwähnt":"Nicht bestätigt",pair.b.insulation?"Erwähnt":"Nicht bestätigt");
  featureRow(t,"Fußleisten laut Beschreibung",pair.a.skirting?"Erwähnt":"Nicht bestätigt",pair.b.skirting?"Erwähnt":"Nicht bestätigt");
- box.append(t,node("p","notice","Automatischer Vorschlag, keine bestätigte Gleichwertigkeit. Fehlende Angaben sind kein Qualitätsnachteil."));
+ box.append(t,node("p","notice","Automatischer bzw. manueller Eigenschaftsvergleich, keine bestätigte Gleichwertigkeit. Unterschiedliche Stärken, Nutzschichten und Nutzungsklassen sind Merkmale – nicht automatisch Vor- oder Nachteile."));
  const row=node("div","row");
  for(const p of [pair.a,pair.b]){const a=node("a",null,p.shopName+" ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";row.append(a);}
  box.append(row);
 }
 function renderComparisons(pairs){
  const area=el("comparisonHolder");area.replaceChildren();
- if(!pairs.length){area.append(node("div","empty","Noch keine geeigneten Preisvergleiche. Mindestens zwei Shops mit verifizierbarem €/m²-Preis sind erforderlich."));return;}
+ if(!pairs.length){
+  const statuses=state.shops.filter(sh=>sh.active).map(sh=>sh.name+": "+
+   sh.items.filter(validPrice).length+" erfasste €/m²-Preise");
+  area.append(node("div","empty",
+   "Noch keine automatischen technischen Alternativen gefunden. Du kannst trotzdem zwei Artikel in der Produktliste manuell vergleichen. "+statuses.join(" · ")));
+  return;
+ }
  const choices=pairs.filter(pair=>{
   const q=state.query.toLowerCase();
   return (!state.category||pair.a.category===state.category)&&
@@ -525,17 +537,26 @@ function renderComparisons(pairs){
  }).slice(0,state.limit);
  for(const pair of choices){
   const item=node("div","pair"),left=node("div","pair-body");
-  const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
   left.append(node("strong",null,pair.a.shopName+": "+pair.a.name));
   left.append(node("small","muted","↔ "+pair.b.shopName+": "+pair.b.name));
-  left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
-  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je "+pair.a.unit+" ("+Math.round(100*pair.relative)+" % gegenüber dem höheren Preis)"));
-  left.append(node("small","muted","Automatischer Vergleichsvorschlag · Merkmale vor Verwendung prüfen"));
+  left.append(node("small","muted",pair.quality+" · Vorschlag, keine bestätigte Gleichwertigkeit"));
+  if(pair.pricePair){
+   const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
+   left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
+   left.append(node("strong","green",
+    (pair.diff===0?"Gleicher Preis":smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" /"+pair.a.unit)
+    +" · "+Math.round(pair.relative*100)+" % Unterschied"));
+  }else{
+   left.append(node("strong","price-unknown","Preisvergleich noch nicht möglich – €/m²-Preis fehlt auf mindestens einer Seite"));
+   left.append(node("small","muted",
+    pair.a.shopName+": "+(validPrice(pair.a)?showEuro(pair.a.price)+" /m²":"kein verifizierter €/m²-Preis")+
+    " · "+pair.b.shopName+": "+(validPrice(pair.b)?showEuro(pair.b.price)+" /m²":"kein verifizierter €/m²-Preis")));
+  }
   const detail=node("div","detail-box");detail.hidden=true;
-  item.append(left,btn("Technik vergleichen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
+  item.append(left,btn("Merkmale ansehen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
   area.append(item);
  }
- if(!choices.length)area.append(node("div","empty","Keine Vorschläge in diesem Filter."));
+ if(!choices.length)area.append(node("div","empty","Keine Vorschläge für diese Filter. In der Produktliste kannst du zwei beliebige Böden auswählen."));
 }
 function renderPromos(){
  const area=el("offersHolder");area.replaceChildren();
@@ -553,7 +574,8 @@ function renderPromos(){
  }
 }
 function render(){
- const all=allItems(),pairs=comparePairs();renderMetrics(all,pairs);
+ const all=allItems(),pairs=comparePairs();
+ renderMetrics(all,pairs);renderOverview(all);renderQuickCategories();
  el("productsTab").classList.toggle("active",state.tab==="products");
  el("comparisonTab").classList.toggle("active",state.tab==="comparison");
  el("offersTab").classList.toggle("active",state.tab==="offers");
@@ -561,7 +583,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison")renderComparisons(pairs);
+ if(state.tab==="comparison"){renderManualComparison();renderComparisons(pairs);}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
