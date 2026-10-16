@@ -1,4 +1,15 @@
-# MarktRadar 5.3 — Cloudflare Free (kein kostenpflichtiges Abo)
+# MarktRadar 5.4 — Cloudflare Free (kein kostenpflichtiges Abo)
+
+## MarktRadar 5.4 – Sortiment & Preise (Oktober 2026)
+
+- Es werden ausschließlich **Laminat**, **Vinyl einschließlich Rigid-Vinyl/SPC/LVT** sowie **Parkett** ausgelesen und angezeigt. Bioboden, Teppich, PVC, Kork, Zubehör und sonstige Bodenarten entfallen aus Erkennung, Dashboard, Preisduell, Filter und neuer Erfassung.
+- Der Laminat-DEPOT-Parser priorisiert **Komplettpreis €/m²** und **Bodenpreis €/m²**, statt Streichpreise, Dämmungs- oder Paketpreise mit dem Verkaufspreis zu verwechseln. Ausgewiesene alte Komplettpreise werden nur bei eindeutig höherem €/m²-Preis als Vergleichspreis übernommen. Unklare Preise bleiben unbekannt.
+- Größere Shops: Kataloglisten bis zu 2.500 Links und 500-URL-Sitemap-Seiten, bis zu 100 Seiten eines öffentlichen Shopify-Katalogs. Der selbst gesetzte Browser-Grenzwert beträgt nun **1.000 Scan-API-Anfragen pro UTC-Tag**. Cloudflare-Free-Kontingent und Shop-Zugriffsbeschränkungen bleiben davon unabhängig bestehen.
+- **Scan vertiefen:** Mehrere Prüfetappen pro Klick, mit einem globalen Zeitlimit von 210 Sekunden. Weitere offene Aufgaben sind am nächsten Klick fortsetzbar. Den Browser-Tab währenddessen geöffnet lassen.
+- Bereits gespeicherte Shop- und Produktdaten bleiben unter dem bekannten Browserschlüssel `marktradar:catalog:v3` verfügbar. Frühere nicht unterstützte Produktarten werden aus der Anzeige gefiltert.
+- Der Browser nutzt weiterhin IndexedDB für vollständige Kataloge; die lokale Ersatzsicherung schneidet nicht mehr schon früh auf 60 Produkte ab. Ein Regressionstest prüft 340 Produkte ohne IndexedDB.
+- **Keine Vollständigkeitsgarantie:** Keine öffentlich zugängliche Lösung kann garantieren, dass alle Artikel und aktuelle Preise jeder fremden Shopseite ausgelesen werden. Angaben im MarktRadar vor Entscheidungen mit den Originalangeboten abgleichen.
+
 
 ## MarktRadar 5.3 – gleichmäßiger Scan und verlässliches Preisduell
 
