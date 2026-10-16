@@ -21,7 +21,7 @@ function makeProduct(name,price,url){
  return {name,price,category:"Laminat",unit:"m²",url,thickness:8,nk:"32",ac:"AC4",
   brand:"Demo",sku:"",checkedAt:new Date().toISOString()};
 }
-function boot(withProducts=true){
+function boot(withProducts=true,mockFetch=async()=>{throw Error("Network not expected in UI test");}){
  const ids=[...html.matchAll(/id="([^"]+)"/g)].map(m=>m[1]);
  const elements=new Map(ids.map(id=>[id,new Element("div",id)]));
  const document={
@@ -43,13 +43,13 @@ function boot(withProducts=true){
  const localStorage={getItem:k=>values.get(k)||null,setItem:(k,v)=>values.set(k,v),removeItem:k=>values.delete(k)};
  const window={prompt:()=>null,confirm:()=>true};
  const exposed=source.replace(/\}\)\(\);\s*$/,
-  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance,compareNow,looksLikeFloorProduct,loadAppearance,readAutoSettings,changeAutoSettings,shopDueForAuto,updateAutoScanStatus,removeLogoNow,selectDesignPreset};})();');
+  'window.__marketRadarTest={state,render,renderPriceDuel,renderManualComparison,save,editProductPrice,fillCompareShops,validateAppearance,compareNow,looksLikeFloorProduct,loadAppearance,readAutoSettings,changeAutoSettings,shopDueForAuto,updateAutoScanStatus,removeLogoNow,selectDesignPreset,maybeAutoScan};})();');
  class FakeFileReader{
   readAsDataURL(file){this.result=file.data;this.onload();}
   readAsText(file){this.result=file.content;this.onload();}
  }
- new Function("document","window","localStorage","navigator","FileReader",exposed)(
-  document,window,localStorage,{clipboard:{}},FakeFileReader);
+ new Function("document","window","localStorage","navigator","FileReader","fetch",exposed)(
+  document,window,localStorage,{clipboard:{}},FakeFileReader,mockFetch);
  return {window,state:window.__marketRadarTest.state,api:window.__marketRadarTest,
   elements,localStorage,document,values};
 }
@@ -471,4 +471,32 @@ test("Scanner queue has exactly matching initialized and persisted version",()=>
  assert.equal(start[1],checkpoint[1]);
  assert.match(source,/saved\.engineVersion!==9/);
  assert.match(source,/lastScanAt:new Date\(\)\.toISOString\(\)/);
+});
+
+test("Automatic scan actually discovers, fetches, saves and resumes without repeated API calls",async()=>{
+ const requests=[];
+ const product={name:"Laminat Natur 8 mm",category:"Laminat",
+  price:13.99,unit:"m²",url:"https://laminatdepot.de/produkte/laminat-natur-8mm",
+  thickness:8,nk:"32",ac:"AC4"};
+ const mockFetch=async(_endpoint,opts)=>{
+  const input=JSON.parse(opts.body);
+  requests.push({action:input.action,site:input.site});
+  const result=input.action==="discover"?
+   {jobs:[],urls:input.site.includes("laminatdepot.de")?[product.url]:[]}:
+   input.action==="batch"?{products:[product],errors:[]}:{jobs:[],urls:[],products:[]};
+  return {ok:true,status:200,text:async()=>JSON.stringify(result)};
+ };
+ const app=boot(false,mockFetch);
+ app.api.readAutoSettings();
+ const started=await app.api.maybeAutoScan();
+ assert.equal(started,true);
+ assert.ok(requests.some(r=>r.action==="discover"&&r.site.includes("laminatdepot.de")));
+ assert.ok(requests.some(r=>r.action==="batch"));
+ assert.equal(app.state.shops[0].items[0].price,13.99);
+ assert.equal(app.state.shops[0].scan.engineVersion,9);
+ assert.equal(app.state.shops[0].scan.urls.length,0);
+ const oldCount=requests.length;
+ assert.equal(await app.api.maybeAutoScan(),false);
+ assert.equal(requests.length,oldCount); // respects next interval
+ assert.equal(app.values.get("marktradar:auto:lease:v1"),undefined);
 });
