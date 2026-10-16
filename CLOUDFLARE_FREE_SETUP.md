@@ -93,3 +93,7 @@ Nach Cloudflare Ready Seite mit Strg+F5 neu laden: drei Kennzahlen „Laminat“
 ## MarktRadar 5.9 – Automatik und eigenes Design
 
 Nach erfolgreichem Cloudflare-Deploy: Strg+F5 und oben „Version 5.9“ prüfen. „Automatische Produktprüfung“ ist standardmäßig eingeschaltet; gewünschtes Intervall (30/60/180 Minuten) wählen, bei Bedarf per Checkbox ausschalten. Der Browser muss geöffnet und der Tab sichtbar bleiben. Unter „Designstudio öffnen“ Logo, Farben, Schriften, Textgrößen, Abstände und Breite bearbeiten. „Logo sofort entfernen“ löscht die Logodatei unmittelbar aus der gespeicherten Darstellung. Während eines Scans bleiben nicht verfügbare Produkte sichtbar als unvollständig, statt einen Komplettscan vorzutäuschen. Die Backend-API bleibt unter /api/catalog; kein zusätzlicher kostenpflichtiger Dienst erforderlich.
+
+## Version 5.10 – Unterlagen nicht als Laminat
+
+SELITAC 2,2 mm Faltplatte für Laminat (1,99 €/m²) und andere Dämmunterlagen dürfen nicht als Laminat-Bestpreis, in der Produktliste oder im Vergleich erscheinen. Nach erfolgreichem Cloudflare-Deploy Version 5.10 durch Strg+F5 aktivieren. Der bestehende Shopkatalog und das individuelle Design bleiben im Browser erhalten.
