@@ -127,9 +127,9 @@ function meterPrice(text,structured,pack){
  const valid=[];
  for(const regex of patterns){
   for(const match of t.matchAll(regex)){
-   const context=t.slice(Math.max(0,match.index-45),match.index);
+   const context=t.slice(Math.max(0,match.index-90),match.index).split("€").pop();
    // Old prices, savings and "from" prices are not confirmed current offers.
-   if(/(?:statt|uvp|alter(?:\s+preis)?|ersparnis|du\s+sparst|gespart|ab)\s*:?\s*$/i.test(context))continue;
+   if(/(?:statt|uvp|alter(?:\s+preis)?(?:\s+pro(?:\s*(?:m²|m2|qm))?)?|ersparnis|du\s+sparst|sie\s+sparen|gespart|ab)\s*:?\s*$/i.test(context))continue;
    const candidate=number(match[1]);
    if(candidate&&candidate<2500)valid.push({price:candidate,at:match.index});
   }
