@@ -98,6 +98,8 @@ test("Fast and deep scan controls exist without modifying the API",()=>{
  assert.match(html,/id="deepScanButton"/);
  assert.match(html,/id="scanButton"/);
  assert.equal(typeof app.elements.get("deepScanButton").onclick,"function");
+ assert.equal(typeof app.elements.get("fullScanButton").onclick,"function");
+ assert.equal(typeof app.elements.get("stopScanButton").onclick,"function");
  assert.match(source,/const API_PATH="\/api\/catalog"/);
 });
 test("Cloudflare dist assets always match the current source",()=>{
@@ -107,8 +109,8 @@ test("Cloudflare dist assets always match the current source",()=>{
 
 test("All shops share the same bounded scanner and old products remain in storage",()=>{
  const app=boot();
- assert.match(source,/engineVersion:4/);
- assert.match(source,/for\(let round=0;round<rounds;round\+\+\)/);
+ assert.match(source,/engineVersion:5/);
+ assert.match(source,/for\(let round=0;round<rounds&&/);
  assert.match(source,/for\(const shop of shops\)/);
  assert.equal(app.state.shops[0].items.length,1);
  assert.equal(app.state.shops[1].items.length,1);
@@ -149,4 +151,19 @@ test("More than 300 floor products remain in browser storage without IndexedDB",
  assert.equal(saved.shops[0].items.length,340);
  app.api.render();
  assert.equal(app.elements.get("bestPriceGrid").children.length,3);
+});
+
+test("Browser full scan is bounded, resumable and supports stopping",()=>{
+ const app=boot();
+ assert.match(source,/const rounds=full\?120:deep\?12:1/);
+ assert.match(source,/const maxSessionMs=full\?900000:/);
+ assert.match(source,/if\(Date\.now\(\)-overallStart>=maxSessionMs\|\|state\.stopRequested\)break/);
+ app.state.busy=true;
+ app.elements.get("stopScanButton").click();
+ assert.equal(app.state.stopRequested,true);
+});
+test("Unpriced saved products will be revisited in scanner v5",()=>{
+ assert.match(source,/previous\.filter\(p=>p\?\.url&&isFloor\(p\)&&!validPrice\(p\)\)/);
+ assert.match(source,/urls:\[\.\.\.new Set\(\[\.\.\.unpriced,/);
+ assert.match(source,/if\(saved&&saved\.engineVersion!==5\)saved=null/);
 });
