@@ -129,7 +129,7 @@ function meterPrice(text,structured,pack){
   for(const match of t.matchAll(regex)){
    const context=t.slice(Math.max(0,match.index-45),match.index);
    // Old prices, savings and "from" prices are not confirmed current offers.
-   if(/(?:statt|uvp|alter\s+preis|ersparnis|du\s+sparst|gespart|ab)\s*:?\s*$/i.test(context))continue;
+   if(/(?:statt|uvp|alter(?:\s+preis)?|ersparnis|du\s+sparst|gespart|ab)\s*:?\s*$/i.test(context))continue;
    const candidate=number(match[1]);
    if(candidate&&candidate<2500)valid.push({price:candidate,at:match.index});
   }
