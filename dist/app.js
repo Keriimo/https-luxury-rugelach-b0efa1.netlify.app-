@@ -51,7 +51,53 @@ const DEFAULT=[
  {id:"dep",name:"Laminat DEPOT",url:"https://laminatdepot.de/",active:true,items:[],scan:null},
  {id:"sh24",name:"Laminat-Shop24",url:"https://laminat-shop24.com/",active:true,items:[],scan:null}
 ];
-let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false};
+let state={shops:DEFAULT,tab:"products",query:"",category:"",promo:"",limit:20,sort:"price",busy:false,manualCompare:[]};
+const APPEARANCE_KEY="marktradar:appearance:v1";
+const STANDARD_STYLE={brand:"LAMINAT DEPOT · MARKTRADAR",title:"Wettbewerbsanalyse",
+ subtitle:"Laminat · Vinyl · Parkett · Bioboden · Teppich · Zubehör · €/m²",
+ accent:"#e5233f",hero:"#15233a"};
+let appearance={...STANDARD_STYLE};
+const accentOptions=["#e5233f","#c51f32","#2563eb","#0c8c62"];
+const heroOptions=["#15233a","#101827","#ffffff"];
+function loadAppearance(){
+ try{
+  const saved=JSON.parse(localStorage.getItem(APPEARANCE_KEY)||"null");
+  if(saved&&typeof saved==="object"){
+   for(const key of ["brand","title","subtitle"])
+    if(typeof saved[key]==="string"&&saved[key].trim())appearance[key]=saved[key].slice(0,key==="subtitle"?130:80);
+   if(accentOptions.includes(saved.accent))appearance.accent=saved.accent;
+   if(heroOptions.includes(saved.hero))appearance.hero=saved.hero;
+  }
+ }catch(e){}
+ updateAppearance();
+}
+function updateAppearance(){
+ document.documentElement.style.setProperty("--accent",appearance.accent);
+ document.documentElement.style.setProperty("--hero",appearance.hero);
+ el("brandLabel").textContent=appearance.brand;
+ el("pageHeading").textContent=appearance.title;
+ el("pageSubtitle").textContent=appearance.subtitle;
+ document.title=appearance.title+" · MarktRadar";
+ el("editorBrand").value=appearance.brand;
+ el("editorTitle").value=appearance.title;
+ el("editorSubtitle").value=appearance.subtitle;
+ el("editorAccent").value=appearance.accent;
+ el("editorTheme").value=appearance.hero;
+ el("hero").classList.toggle("light",appearance.hero==="#ffffff");
+}
+function saveAppearance(){
+ const brand=neat(el("editorBrand").value).slice(0,65);
+ const title=neat(el("editorTitle").value).slice(0,80);
+ const subtitle=neat(el("editorSubtitle").value).slice(0,130);
+ if(!brand||!title){setStatus("Bitte eine Marken-Zeile und Überschrift eingeben.","warning");return;}
+ appearance={brand,title,subtitle:subtitle||STANDARD_STYLE.subtitle,
+  accent:accentOptions.includes(el("editorAccent").value)?el("editorAccent").value:STANDARD_STYLE.accent,
+  hero:heroOptions.includes(el("editorTheme").value)?el("editorTheme").value:STANDARD_STYLE.hero};
+ try{localStorage.setItem(APPEARANCE_KEY,JSON.stringify(appearance));}catch(e){setStatus("Darstellung konnte nicht gespeichert werden. Browserspeicher prüfen.","warning");return;}
+ updateAppearance();
+ el("appearancePanel").hidden=true;
+ setStatus("Darstellung für diesen Browser gespeichert. Scanner und Preise unverändert.","ok");
+}
 const showEuro=n=>Number.isFinite(n)?n.toLocaleString("de-DE",{style:"currency",currency:"EUR"}):"–";
 const now=()=>new Date().toLocaleString("de-DE");
 const neat=s=>String(s||"").trim();
@@ -190,6 +236,7 @@ function renderShops(){
  const selected=state.shops.filter(s=>s.active);
  el("selectionCount").textContent=selected.length+" Shop"+(selected.length!==1?"s":"")+" ausgewählt";
  el("scanButton").disabled=state.busy||!selected.length;
+ el("deepScanButton").disabled=state.busy||!selected.length;
  el("resetButton").disabled=state.busy||!selected.length;
 }
 function allItems(){return state.shops.filter(s=>s.active).flatMap(s=>s.items.map(p=>({...p,shopId:s.id,shopName:s.name})))}
@@ -209,65 +256,205 @@ function filteredItems(onlyOffers=false){
 }
 function tokenSet(s){return new Set(neat(s).toLowerCase().split(/[^a-zäöüß0-9]+/).filter(w=>w.length>=4&& !["laminat","boden","eiche","vinyl","parkett","inklusive","stärke","eicheoptik"].includes(w)))}
 let compareCache={signature:null,pairs:[]};
+function hasComparablePrice(a,b){
+ return priceAvailable(a)&&priceAvailable(b)&&a.unit===b.unit;
+}
 function comparePairs(){
  const active=state.shops.filter(s=>s.active);
- const signature=active.map(s=>s.id+":"+s.items.length+":"+(s.checkedAt||"")+":"+s.items.filter(p=>p.price!=null).length).join("|");
+ const signature=active.map(s=>s.id+":"+s.items.length+":"+(s.checkedAt||"")).join("|");
  if(compareCache.signature===signature)return compareCache.pairs;
- const list=active.flatMap(s=>s.items.filter(priceAvailable).map(p=>({...p,shopId:s.id,shopName:s.name})));
- const byToken=new Map(),bySku=new Map(),pairs=[];
- function scorePair(x,y){
-  if(x.shopId===y.shopId||x.category!==y.category||x.unit!==y.unit)return -100;
-  let score=0;
-  if(x.sku&&y.sku&&x.sku===y.sku)score+=20;
+ const list=active.flatMap(s=>s.items.filter(p=>p.category&&p.name).map(p=>({...p,shopId:s.id,shopName:s.name})));
+ const byToken=new Map(),byTechnical=new Map(),bySku=new Map(),pairs=[];
+ function record(map,key,item,max=120){
+  const values=map.get(key)||[];
+  values.push(item);
+  if(values.length>max)values.shift();
+  map.set(key,values);
+ }
+ function evaluate(x,y){
+  if(x.shopId===y.shopId||x.category!==y.category)return null;
+  if(x.unit&&y.unit&&x.unit!==y.unit&&priceAvailable(x)&&priceAvailable(y))return null;
+  let score=0,signals=0,technical=0;
+  const matchingBrand=x.brand&&y.brand&&x.brand.toLowerCase()===y.brand.toLowerCase();
+  const sameSku=x.sku&&y.sku&&x.sku===y.sku&&(!x.brand||!y.brand||matchingBrand);
+  if(sameSku){score+=28;signals++;technical++;}
   if(x.thickness!=null&&y.thickness!=null){
    const delta=Math.abs(x.thickness-y.thickness);
-   score+=delta<0.25?5:delta<=1?1:-5;
+   if(delta<0.26){score+=5;signals++;technical++;}
+   else if(delta>1.5)score-=7;
   }
-  if(x.wear!=null&&y.wear!=null)score+=Math.abs(x.wear-y.wear)<0.03?3:-2;
-  if(x.nk&&y.nk)score+=x.nk===y.nk?3:-3;
-  if(x.ac&&y.ac)score+=x.ac===y.ac?2:-2;
+  if(x.wear!=null&&y.wear!=null){
+   if(Math.abs(x.wear-y.wear)<0.04){score+=4;signals++;technical++;}
+   else score-=3;
+  }
+  if(x.nk&&y.nk){
+   if(x.nk===y.nk){score+=4;signals++;technical++;}
+   else score-=3;
+  }
+  if(x.ac&&y.ac){
+   if(x.ac===y.ac){score+=3;signals++;technical++;}
+   else score-=2;
+  }
   const a=tokenSet(x.name),b=tokenSet(y.name);
-  for(const t of a)if(b.has(t))score+=2;
-  if(x.brand&&y.brand&&x.brand.toLowerCase()===y.brand.toLowerCase())score+=2;
-  return score;
+  let common=0;
+  for(const word of a)if(b.has(word))common++;
+  score+=Math.min(common,4)*2;
+  if(common>=2)signals++;
+  if(matchingBrand){score+=2;signals++;}
+  if(signals<2&&!sameSku)return null;
+  if(score<7)return null;
+  return {score,quality:sameSku?"Identische Artikelkennung (prüfen)":
+   technical>=2?"Technisch ähnlich":"Ähnliche Produktangaben"};
  }
  for(const x of list){
-  const tokens=[...tokenSet(x.name)];
-  const candidates=new Set();
-  for(const token of tokens){
-   const group=byToken.get(x.category+"|"+token)||[];
-   for(const y of group.slice(-90))candidates.add(y);
+  const group=new Set();
+  for(const token of tokenSet(x.name)){
+   for(const y of byToken.get(x.category+"|"+token)||[])group.add(y);
   }
-  if(x.sku)for(const y of bySku.get(x.sku)||[])candidates.add(y);
-  let best=null,bestScore=7;
-  let counter=0;
-  for(const y of candidates){
-   if(counter++>180)break;
-   const score=scorePair(x,y);
-   if(score>bestScore){best=y;bestScore=score;}
+  const techKey=x.category+"|"+(x.thickness==null?"?":Math.round(x.thickness*4)/4);
+  if(x.thickness!=null)for(const y of byTechnical.get(techKey)||[])group.add(y);
+  if(x.sku)for(const y of bySku.get(x.sku)||[])group.add(y);
+  let best=null,score=-Infinity,quality="",seen=0;
+  for(const y of group){
+   if(seen++>=200)break;
+   const result=evaluate(x,y);
+   if(result&&result.score>score){best=y;score=result.score;quality=result.quality;}
   }
   if(best){
-   pairs.push({a:x,b:best,score:bestScore,diff:x.price-best.price,
-    relative:Math.abs(x.price-best.price)/Math.max(x.price,best.price)});
+   const pricePair=hasComparablePrice(x,best);
+   pairs.push({a:x,b:best,score,quality,pricePair,
+    diff:pricePair?x.price-best.price:null,
+    relative:pricePair?Math.abs(x.price-best.price)/Math.max(x.price,best.price):null});
   }
-  for(const token of tokens){
-   const k=x.category+"|"+token,group=byToken.get(k)||[];
-   group.push(x);
-   if(group.length>400)group.shift();
-   byToken.set(k,group);
-  }
-  if(x.sku){
-   const group=bySku.get(x.sku)||[];
-   group.push(x);bySku.set(x.sku,group);
-  }
+  for(const token of tokenSet(x.name))record(byToken,x.category+"|"+token,x,100);
+  if(x.thickness!=null)record(byTechnical,techKey,x,120);
+  if(x.sku)record(bySku,x.sku,x,70);
  }
- const unique=new Set();
- const result=pairs.filter(p=>{
-  const key=[p.a.url,p.b.url].sort().join("|");
-  if(unique.has(key))return false;unique.add(key);return true;
- }).sort((a,b)=>b.relative-a.relative).slice(0,800);
- compareCache={signature,pairs:result};
- return result;
+ const unique=new Set(),used=new Set();
+ const ranked=pairs.sort((a,b)=>Number(b.pricePair)-Number(a.pricePair)||b.score-a.score);
+ const final=ranked.filter(p=>{
+  const id=[p.a.url,p.b.url].sort().join("|");
+  if(unique.has(id)||used.has(p.a.url+"|"+p.a.shopId)&&used.has(p.b.url+"|"+p.b.shopId))return false;
+  unique.add(id);
+  used.add(p.a.url+"|"+p.a.shopId);used.add(p.b.url+"|"+p.b.shopId);
+  return true;
+ }).slice(0,500);
+ compareCache={signature,pairs:final};
+ return final;
+}
+
+const PRICE_CATEGORIES=["Laminat","Vinyl","Parkett","Zubehör"];
+function productLink(p,label){
+ const a=node("a",null,label||"Produkt öffnen ↗");
+ a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";
+ return a;
+}
+function renderOverview(items){
+ const section=el("bestPriceGrid");section.replaceChildren();
+ const prices=items.filter(validPrice);
+ const count=prices.length;
+ el("priceCoverage").textContent=count+" Produkte mit erfasstem €/m²-Preis";
+ el("priceCoverage").classList.toggle("warn",!count);
+ for(const category of PRICE_CATEGORIES){
+  const options=items.filter(p=>p.category===category&&priceAvailable(p)&&
+   (category==="Zubehör"?p.unit==="Stück":p.unit==="m²"));
+  options.sort((a,b)=>a.price-b.price);
+  const product=options[0];
+  const card=node("div","best-card"+(!product?" empty-price":""));
+  card.append(node("small","muted",category==="Zubehör"?"Zubehör · Stückpreis":"Bester erfasster "+category+"-Preis"));
+  if(product){
+   card.append(node("strong","",showEuro(product.price)+" /"+product.unit));
+   card.append(node("div","name",product.name));
+   card.append(node("small","muted",product.shopName));
+   card.append(productLink(product,"Angebot ansehen ↗"));
+  }else{
+   card.append(node("strong",null,"Noch kein Preis"));
+   card.append(node("div","name","Für diese Kategorie wurde noch kein passender Preis erfasst."));
+  }
+  section.append(card);
+ }
+ const wrap=el("shopCoverage");wrap.replaceChildren();
+ const table=node("table","mini-table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
+ tableHeader(tr,["Shop","Produkte erfasst","Mit €/m²","Günstigster erfasster Boden","Scanstatus"]);
+ thead.append(tr);
+ for(const shop of state.shops.filter(x=>x.active)){
+  const all=shop.items||[],floor=all.filter(p=>p.category!=="Zubehör"),verified=floor.filter(validPrice);
+  const best=verified.length?verified.reduce((a,b)=>a.price<b.price?a:b):null;
+  const row=node("tr");
+  const name=node("td");name.append(node("strong",null,shop.name));
+  const dataQuality=node("td",null,verified.length+" von "+floor.length+" Bodenartikeln");
+  const scan=shop.scan;
+  let status="Noch nicht geprüft";
+  if(scan){
+   const pending=(scan.jobs?.length||0)+(scan.urls?.length||0);
+   status=scan.blocked?"Zugriff eingeschränkt":pending?pending+" Aufgaben offen":
+    scan.failures?"Teilweise geprüft":"Prüfung beendet";
+  }
+  row.append(name,node("td",null,all.length),dataQuality,
+   node("td","price",best?showEuro(best.price)+" /m²":"Preis fehlt"),
+   node("td",null,status));
+  tbody.append(row);
+ }
+ if(!tbody.children.length){const tr=node("tr"),cell=node("td",null,"Wähle mindestens einen Shop aus.");cell.colSpan=5;tr.append(cell);tbody.append(tr);}
+ table.append(thead,tbody);wrap.append(table);
+}
+function renderQuickCategories(){
+ const box=el("quickCategories");box.replaceChildren();
+ const choices=[["","Alle Bodenbeläge"],...PRICE_CATEGORIES.map(cat=>[cat,cat])];
+ for(const [value,label]of choices){
+  const button=btn(label,()=>{
+   state.category=value;
+   el("category").value=value;
+   render();
+  },state.category===value?"active":"secondary");
+  button.classList.toggle("active",state.category===value);
+  box.append(button);
+ }
+}
+function compareSelectionChanged(){
+ const chosen=state.manualCompare.length;
+ setStatus(chosen<2?chosen+" von 2 Produkten für den technischen Vergleich ausgewählt.":
+  "Zwei Produkte ausgewählt. Technische Eigenschaften und vorhandene Preise werden nebeneinander angezeigt.","ok");
+ if(chosen===2)state.tab="comparison";
+ render();
+}
+function toggleManualProduct(p){
+ const key=p.shopId+"|"+p.url;
+ const idx=state.manualCompare.findIndex(x=>x.shopId+"|"+x.url===key);
+ if(idx>=0)state.manualCompare.splice(idx,1);
+ else{
+  if(state.manualCompare.length>=2)state.manualCompare.shift();
+  state.manualCompare.push({...p});
+ }
+ compareSelectionChanged();
+}
+function renderManualComparison(){
+ const label=el("manualSelectionLabel"),area=el("manualComparisonHolder");
+ const count=state.manualCompare.length;
+ label.textContent=count===0?"Wähle in der Produktliste zwei Artikel über „Vergleichen“ aus.":
+  count===1?"1 von 2 Artikeln ausgewählt: "+state.manualCompare[0].name:
+  "2 Produkte zum direkten Merkmalsvergleich ausgewählt";
+ area.replaceChildren();
+ if(count<2){
+  area.append(node("p","empty","Auch ohne €/m²-Preis möglich. Gehe zur Produktliste und wähle zwei Produkte aus."));
+  return;
+ }
+ const a=state.manualCompare[0],b=state.manualCompare[1];
+ const unitCheck=hasComparablePrice(a,b),sameCategory=a.category===b.category;
+ const card=node("div","manual-card");
+ const title=node("h3",null,"Manuell ausgewählter Produktvergleich");
+ card.append(title);
+ const info= !sameCategory?"Unterschiedliche Bodenarten – kein gleichwertiger Vergleich.":
+  !unitCheck?"Einer oder beide Preise fehlen beziehungsweise besitzen unterschiedliche Einheiten. Kein Preisvorteil berechnet.":
+  "Beide Preise sind pro "+a.unit+" erfasst; technische Unterschiede bitte einzeln prüfen.";
+ card.append(node("p","notice",info));
+ const detail=node("div","detail-box");comparisonDetail({a,b},detail);card.append(detail);
+ if(unitCheck){
+  const difference=Math.abs(a.price-b.price);
+  const cheaper=a.price===b.price?"Gleicher Preis":a.price<b.price?a.shopName+" günstiger":b.shopName+" günstiger";
+  card.append(node("strong","green",cheaper+": "+showEuro(difference)+" je "+a.unit));
+ }
+ area.append(card);
 }
 function renderMetrics(items,pairs){
  const top=el("metrics");top.replaceChildren();
@@ -283,7 +470,7 @@ function tableHeader(tr,headers){for(const h of headers)tr.append(node("th",null
 function renderProducts(){
  const box=el("tableHolder");box.replaceChildren();
  const table=node("table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
- tableHeader(tr,["Produkt","Shop","Kategorie","Stärke","NK / AC","Preis","Aktion","Quelle"]);
+ tableHeader(tr,["Produkt","Shop","Kategorie","Stärke","NK / AC","Preis","Aktion","Quelle","Auswahl"]);
  thead.append(tr);
  for(const p of filteredItems()){
   const row=node("tr");
@@ -303,9 +490,13 @@ function renderProducts(){
    node("td",null,p.thickness!=null?p.thickness+" mm":"–"),
    node("td",null,[p.nk?"NK "+p.nk:null,p.ac].filter(Boolean).join(" / ")||"–"),
    priceCell,node("td",null,p.promotion||"–"));
-  const source=node("td"),a=node("a",null,"Angebot ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";source.append(a);row.append(source);tbody.append(row);
+  const source=node("td");source.append(productLink(p,"Angebot ↗"));row.append(source);
+  const choice=node("td");
+  const selected=state.manualCompare.some(x=>x.shopId===p.shopId&&x.url===p.url);
+  const action=btn(selected?"Abwählen":"Vergleichen",()=>toggleManualProduct(p),selected?"active":"secondary");
+  choice.append(action);row.append(choice);tbody.append(row);
  }
- if(!tbody.children.length){const row=node("tr"),td=node("td",null,"Keine Produkte für die gewählten Filter. Prüfe die Shop-Auswahl oder starte einen Scan.");td.colSpan=8;row.append(td);tbody.append(row);}
+ if(!tbody.children.length){const row=node("tr"),td=node("td",null,"Keine Produkte für die gewählten Filter. Prüfe die Shop-Auswahl oder starte einen Scan.");td.colSpan=9;row.append(td);tbody.append(row);}
  table.append(thead,tbody);box.append(table);
 }
 function featureRow(table,label,a,b){
@@ -316,21 +507,29 @@ function comparisonDetail(pair,box){
  const t=node("table","detail"),heading=node("tr");
  tableHeader(heading,["Merkmal",pair.a.shopName,pair.b.shopName]);t.append(heading);
  featureRow(t,"Produkt",pair.a.name,pair.b.name);
- featureRow(t,"Preis je "+pair.a.unit,showEuro(pair.a.price),showEuro(pair.b.price));
+ featureRow(t,"Preis je Verkaufseinheit",
+  priceAvailable(pair.a)?showEuro(pair.a.price)+" /"+pair.a.unit:"Nicht erfasst",
+  priceAvailable(pair.b)?showEuro(pair.b.price)+" /"+pair.b.unit:"Nicht erfasst");
  featureRow(t,"Stärke",pair.a.thickness!=null?pair.a.thickness+" mm":null,pair.b.thickness!=null?pair.b.thickness+" mm":null);
  featureRow(t,"Nutzschicht",pair.a.wear!=null?pair.a.wear+" mm":null,pair.b.wear!=null?pair.b.wear+" mm":null);
  featureRow(t,"Nutzungsklasse",pair.a.nk?("NK "+pair.a.nk):null,pair.b.nk?("NK "+pair.b.nk):null);
  featureRow(t,"Abriebklasse",pair.a.ac,pair.b.ac);
  featureRow(t,"Dämmung laut Beschreibung",pair.a.insulation?"Erwähnt":"Nicht bestätigt",pair.b.insulation?"Erwähnt":"Nicht bestätigt");
  featureRow(t,"Fußleisten laut Beschreibung",pair.a.skirting?"Erwähnt":"Nicht bestätigt",pair.b.skirting?"Erwähnt":"Nicht bestätigt");
- box.append(t,node("p","notice","Automatischer Vorschlag, keine bestätigte Gleichwertigkeit. Fehlende Angaben sind kein Qualitätsnachteil."));
+ box.append(t,node("p","notice","Automatischer bzw. manueller Eigenschaftsvergleich, keine bestätigte Gleichwertigkeit. Unterschiedliche Stärken, Nutzschichten und Nutzungsklassen sind Merkmale – nicht automatisch Vor- oder Nachteile."));
  const row=node("div","row");
  for(const p of [pair.a,pair.b]){const a=node("a",null,p.shopName+" ↗");a.href=p.url;a.target="_blank";a.rel="noopener noreferrer";row.append(a);}
  box.append(row);
 }
 function renderComparisons(pairs){
  const area=el("comparisonHolder");area.replaceChildren();
- if(!pairs.length){area.append(node("div","empty","Noch keine geeigneten Preisvergleiche. Mindestens zwei Shops mit verifizierbarem €/m²-Preis sind erforderlich."));return;}
+ if(!pairs.length){
+  const statuses=state.shops.filter(sh=>sh.active).map(sh=>sh.name+": "+
+   sh.items.filter(validPrice).length+" erfasste €/m²-Preise");
+  area.append(node("div","empty",
+   "Noch keine automatischen technischen Alternativen gefunden. Du kannst trotzdem zwei Artikel in der Produktliste manuell vergleichen. "+statuses.join(" · ")));
+  return;
+ }
  const choices=pairs.filter(pair=>{
   const q=state.query.toLowerCase();
   return (!state.category||pair.a.category===state.category)&&
@@ -339,17 +538,26 @@ function renderComparisons(pairs){
  }).slice(0,state.limit);
  for(const pair of choices){
   const item=node("div","pair"),left=node("div","pair-body");
-  const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
   left.append(node("strong",null,pair.a.shopName+": "+pair.a.name));
   left.append(node("small","muted","↔ "+pair.b.shopName+": "+pair.b.name));
-  left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
-  left.append(node("strong","green",smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" je "+pair.a.unit+" ("+Math.round(100*pair.relative)+" % gegenüber dem höheren Preis)"));
-  left.append(node("small","muted","Automatischer Vergleichsvorschlag · Merkmale vor Verwendung prüfen"));
+  left.append(node("small","muted",pair.quality+" · Vorschlag, keine bestätigte Gleichwertigkeit"));
+  if(pair.pricePair){
+   const smaller=pair.a.price<=pair.b.price?pair.a:pair.b;
+   left.append(node("div","",showEuro(pair.a.price)+" /"+pair.a.unit+" ↔ "+showEuro(pair.b.price)+" /"+pair.b.unit));
+   left.append(node("strong","green",
+    (pair.diff===0?"Gleicher Preis":smaller.shopName+" günstiger um "+showEuro(Math.abs(pair.diff))+" /"+pair.a.unit)
+    +" · "+Math.round(pair.relative*100)+" % Unterschied"));
+  }else{
+   left.append(node("strong","price-unknown","Preisvergleich noch nicht möglich – €/m²-Preis fehlt auf mindestens einer Seite"));
+   left.append(node("small","muted",
+    pair.a.shopName+": "+(validPrice(pair.a)?showEuro(pair.a.price)+" /m²":"kein verifizierter €/m²-Preis")+
+    " · "+pair.b.shopName+": "+(validPrice(pair.b)?showEuro(pair.b.price)+" /m²":"kein verifizierter €/m²-Preis")));
+  }
   const detail=node("div","detail-box");detail.hidden=true;
-  item.append(left,btn("Technik vergleichen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
+  item.append(left,btn("Merkmale ansehen",()=>{detail.hidden=!detail.hidden;if(!detail.hidden)comparisonDetail(pair,detail);},"secondary"),detail);
   area.append(item);
  }
- if(!choices.length)area.append(node("div","empty","Keine Vorschläge in diesem Filter."));
+ if(!choices.length)area.append(node("div","empty","Keine Vorschläge für diese Filter. In der Produktliste kannst du zwei beliebige Böden auswählen."));
 }
 function renderPromos(){
  const area=el("offersHolder");area.replaceChildren();
@@ -367,7 +575,8 @@ function renderPromos(){
  }
 }
 function render(){
- const all=allItems(),pairs=comparePairs();renderMetrics(all,pairs);
+ const all=allItems(),pairs=comparePairs();
+ renderMetrics(all,pairs);renderOverview(all);renderQuickCategories();
  el("productsTab").classList.toggle("active",state.tab==="products");
  el("comparisonTab").classList.toggle("active",state.tab==="comparison");
  el("offersTab").classList.toggle("active",state.tab==="offers");
@@ -375,7 +584,7 @@ function render(){
  el("comparisonSection").hidden=state.tab!=="comparison";
  el("offersSection").hidden=state.tab!=="offers";
  if(state.tab==="products")renderProducts();
- if(state.tab==="comparison")renderComparisons(pairs);
+ if(state.tab==="comparison"){renderManualComparison();renderComparisons(pairs);}
  if(state.tab==="offers")renderPromos();
 }
 function allowanceKey(){return "marktradar:requests:"+new Date().toISOString().slice(0,10);}
@@ -401,7 +610,7 @@ async function api(site,action,extra){
   const raw=await res.text();
   let data;
   try{data=JSON.parse(raw);}catch(e){throw Error("Cloudflare /api/catalog: HTTP "+res.status+" · Antwort ist kein JSON");}
-  if(!res.ok)throw Error("Netlify /catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
+  if(!res.ok)throw Error("Cloudflare /api/catalog: HTTP "+res.status+" · "+(data.error||"Abruf fehlgeschlagen"));
   return data;
  }finally{clearTimeout(tid);}
 }
@@ -439,7 +648,7 @@ function errorKind(error){
  if(/quota|free|limit|Sicherheitsgrenze|Kostenlose/i.test(message))return "Gratislimit erreicht";
  return message.slice(0,130);
 }
-async function scanShop(shop,restart){
+async function scanShop(shop,restart,quick=false){
  const previous=Array.isArray(shop.items)?shop.items:[];
  let saved=restart?null:shop.scan;
  if(!saved||(!saved.jobs?.length&&!saved.urls?.length)){
@@ -466,7 +675,7 @@ async function scanShop(shop,restart){
   errors:Array.isArray(saved.errors)?saved.errors.slice(-6):[],
   blocked:false
  };
- const maxJobs=8,maxDetails=24,maxMillis=75000;
+ const maxJobs=quick?5:8,maxDetails=quick?8:24,maxMillis=quick?25000:75000;
  const start=Date.now();
  let jobsDone=0,detailsDone=0,processed=0;
  const progress=()=>{
@@ -571,7 +780,7 @@ async function scanShop(shop,restart){
   diagnostic:scan.items.size===0?"Keine auslesbaren Bodenbelag-Produkte gefunden; Katalog kann gesperrt oder dynamisch sein":
     scan.errors.slice(-2).join("; "),blocked:scan.blocked};
 }
-async function scanAll(restart){
+async function scanAll(restart,deep=false){
  if(state.busy)return;
  const shops=state.shops.filter(s=>s.active);
  if(!shops.length){setStatus("Bitte mindestens einen Shop auswählen.","warning");return;}
@@ -582,10 +791,11 @@ async function scanAll(restart){
    setStatus("Scanne "+shop.name+". Bitte Browser-Tab geöffnet lassen.","normal");
    try{
     let result=null;
-    for(let round=0;round<2;round++){
+    const rounds=deep?2:1;
+    for(let round=0;round<rounds;round++){
      if(remainingRequests()<8)break;
-     setStatus(shop.name+": Katalog-Etappe "+(round+1)+" von maximal 2. Bitte den Tab geöffnet lassen.","normal");
-     result=await scanShop(shop,restart&&round===0);
+     setStatus(shop.name+": "+(deep?"Vertiefter Scan":"Schnellscan")+" – Etappe "+(round+1)+"/"+rounds+". Bereits erfasste Produkte bleiben sichtbar.","normal");
+     result=await scanShop(shop,restart&&round===0,!deep);
      if(result.blocked||result.complete||result.remaining===0)break;
     }
     if(!result){outcomes.push(shop.name+": Gratisbudget für diesen Browser ausgeschöpft.");continue;}
@@ -624,10 +834,20 @@ async function runDiagnostics(){
  }finally{btn.disabled=false;btn.textContent=old;}
 }
 restore();
+loadAppearance();
+el("appearanceButton").onclick=()=>{el("appearancePanel").hidden=!el("appearancePanel").hidden;};
+el("editorSave").onclick=saveAppearance;
+el("editorReset").onclick=()=>{
+ appearance={...STANDARD_STYLE};
+ try{localStorage.removeItem(APPEARANCE_KEY);}catch(e){}
+ updateAppearance();setStatus("Standarddarstellung wiederhergestellt.","ok");
+};
+el("clearCompare").onclick=()=>{state.manualCompare=[];render();};
 el("diagnoseButton").onclick=runDiagnostics;
 el("addButton").onclick=addShop;
-el("scanButton").onclick=()=>scanAll(false);
-el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true);}};
+el("scanButton").onclick=()=>scanAll(false,false);
+el("deepScanButton").onclick=()=>scanAll(false,true);
+el("resetButton").onclick=()=>{if(window.confirm("Neu starten? Bereits gespeicherte Artikel bleiben vorhanden.")){state.shops.filter(s=>s.active).forEach(s=>s.scan=null);scanAll(true,false);}};
 el("exportButton").onclick=downloadJson;
 async function copyFilteredTable(){
  const rows=filteredItems();
