@@ -1,6 +1,6 @@
 // Cloudflare Pages Functions — free-plan catalog scanner.
 // Each call fetches at most two remote pages. No paid API, billing or secrets.
-const VERSION = "5.3.0-free";
+const VERSION = "5.4.0-free";
 const MAX_HTML = 1500000;
 const clean=s=>String(s??"").replace(/\s+/g," ").trim();
 const trim=s=>clean(s).slice(0,180);
@@ -89,27 +89,28 @@ const strip=html=>clean(decode(String(html||"").replace(/<script\b[^>]*>[\s\S]*?
   .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi," ")
   .replace(/<noscript\b[^>]*>[\s\S]*?<\/noscript>/gi," ")
   .replace(/<[^>]*>/g," ")));
+const FLOOR_TYPES=["Laminat","Vinyl","Parkett"];
 function typeOf(text){
  const t=clean(text).toLowerCase();
- if(/^(?:sockel|fußleiste|fussleiste|dämmung|trittschall|unterlage|profil|kleber|reiniger|zubehör)/.test(t))return "Zubehör";
- if(/parkett|massivholz|fertigparkett|schiffsboden/.test(t))return "Parkett";
- if(/laminat/.test(t))return "Laminat";
- if(/vinyl|spc\b|lvt\b|rigid|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
- if(/bioboden|bio-boden|linoleum|kork/.test(t))return "Bioboden & Kork";
- if(/teppichboden|teppichfliese|nadelfilz/.test(t))return "Teppich";
- if(/pvc.?boden|pvc.?belag|cv.?belag/.test(t))return "PVC";
- if(/sockel|fußleiste|fussleiste|trittschall|dämmunterlage|dämmung|unterlage|kleber|profil|zubehör/.test(t))return "Zubehör";
- if(/bodenbelag|bodenplatte|bodenpaneel|flooring/.test(t))return "Sonstige Bodenbeläge";
+ // Exclude PVC-sheeting, carpet, bioboden, accessories and other materials.
+ // The category MUST be found in the product's own title/type, never in the
+ // global navigation on the same page.
+ if(/teppich|auslegware|nadelfilz|linoleum|bioboden|bio.?boden|korkboden|pvc.?boden|cv.?belag|fußleiste|fussleiste|sockelleiste|dämmung(?:splatte)?|trittschall|unterlage|kleber|reiniger|abschlussprofil/.test(t)&&
+    !/(?:laminat|parkett|vinyl|rigid|spc|lvt|designboden)/.test(t))return null;
+ if(/parkett|fertigparkett|massivholz|schiffsboden/.test(t))return "Parkett";
+ if(/laminat|laminate\b/.test(t))return "Laminat";
+ if(/vinyl|rigid(?:[-\s]?vinyl)?|spc\b|lvt\b|designboden|klick.?vinyl|klebe.?vinyl/.test(t))return "Vinyl";
  return null;
 }
+
 function nameClean(text){return trim(text).replace(/^[45][,.]\d\s*\(\d+\)\s*/,"").slice(0,160);}
 function attrs(text,name){
  const t=(name+" "+text).slice(0,65000);
- const thick=t.match(/(?:Stärke|Gesamtdicke|Dicke)\s*:?\s*(\d+(?:[,.]\d+)?)\s*mm/i)
+ const thick=t.match(/(?:Stärke|Gesamtdicke|Dicke|Höhe\s*\/\s*Stärke\s*\[in\s*mm\])\s*:?\s*(\d+(?:[,.]\d+)?)\s*(?:mm)?/i)
    ||t.match(/(\d+(?:[,.]\d+)?)\s*mm\s*(?:stark|dick|Stärke)/i)
    ||name.match(/(\d+(?:[,.]\d+)?)\s*mm/i);
  const wear=t.match(/Nutzschicht(?:stärke)?\s*:?\s*(\d+(?:[,.]\d+)?)\s*mm/i);
- const nk=t.match(/(?:NK|Nutzungsklasse)\s*:?\s*(\d{2})\b/i);
+ const nk=t.match(/(?:NK|Nutzungsklasse)\s*:?\s*(?:\d{2}\s*\/\s*)?(\d{2})\b/i);
  const ac=t.match(/\bAC\s*([3-6])\b/i);
  const pack=t.match(/(?:Paketinhalt|Paketfläche|Paket\s*enthält|Inhalt(?:\s*je\s*Paket)?)\s*:?\s*(\d+(?:[,.]\d+)?)\s*(?:m²|m2|qm)/i);
  return {thickness:thick?number(thick[1]):null,wear:wear?number(wear[1]):null,
@@ -146,8 +147,6 @@ function meterPrice(text,structured,pack){
    price=amount;priceSource="strukturierter Quadratmeterpreis";
   }else if(amount&&pack&&pack>=0.1&&pack<=15){
    price=Math.round(amount/pack*100)/100;priceSource="Paketpreis durch Paketfläche";
-  }else if(amount&&/^(C62|PCE|Stück)$/i.test(unitLabel)&&typeOf(t)==="Zubehör"){
-   price=amount;unit="Stück";priceSource="strukturierter Stückpreis";
   }
  }
  // Compare old and current prices only when the reference explicitly shares the same unit.
@@ -159,6 +158,40 @@ function meterPrice(text,structured,pack){
  const promotion=promoText?"Aktionshinweis":oldPrice?"Ausgewiesener Vergleichspreis":"";
  return {price,unit,priceSource,oldPrice,discountPct,promotion};
 }
+function productPagePrice(text,structured,pack){
+ // LaminatDEPOT often prints the full selling price as
+ // "Komplettpreis statt 17,73 12,99 €/m²". Old prices are not offers.
+ const t=clean(text).slice(0,70000);
+ const segments=[...t.matchAll(/\bKomplettpreis\b/gi)].slice(0,8);
+ for(const segment of segments){
+  const chunk=t.slice(segment.index,segment.index+175).split(/(?:Du sparst|Paketpreis|inkl\.\s*19%|(?:Artikel|Kundenbewertungen)\s+verfügbar)/i)[0];
+  const euro=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)\b/gi)];
+  // Sometimes the old "statt" price is shown without a unit but the sale
+  // price is immediately followed by "€/m²".
+  if(euro.length){
+   const current=number(euro[euro.length-1][1]);
+   if(current&&current<500){
+    const after=chunk.slice(euro[euro.length-1].index+euro[euro.length-1][0].length);
+    if(!/(?:\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/i.test(after))
+     return {...meterPrice("",null,null),price:current,unit:"m²",
+       priceSource:"Komplettpreis €/m² auf Produktseite"};
+   }
+  }
+ }
+ // Alternative product-specific section when the store displays "Boden"
+ // but omits a clearly marked total.
+ for(const section of [...t.matchAll(/\bBoden\s+(.{0,110})/gi)].slice(0,8)){
+  const chunk=section[1].split(/(?:inkl\.|Komplettpreis|Fußleiste|Dämmung)/i)[0];
+  const amount=[...chunk.matchAll(/(\d{1,4}(?:[,.]\d{2}))\s*€?\s*\/\s*(?:m²|m2|qm)/gi)];
+  if(amount.length){
+   const current=number(amount[amount.length-1][1]);
+   if(current&&current<500)return {...meterPrice("",null,null),price:current,
+     unit:"m²",priceSource:"Bodenpreis €/m² auf Produktseite"};
+  }
+ }
+ return meterPrice(t,structured,pack);
+}
+
 function productJson(html){
  const scripts=html.match(/<script\b[^>]*type=["']application\/ld\+json["'][^>]*>[\s\S]*?<\/script>/gi)||[];
  for(const source of scripts.slice(0,10)){
@@ -188,9 +221,9 @@ function detail(html,site,url){
  const main=html.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
  const content=main?main[1]:html.slice(Math.max(0,html.indexOf(h?.[0]||"")||0));
  const text=strip(content).slice(0,65000);
- const category=typeOf(title)||typeOf([ld?.category||"",ld?.description||"",text.slice(0,450)].join(" "));
+ const category=typeOf(title)||typeOf(ld?.category||"");
  if(!title||title.length<5||!category)return null;
- const extra=attrs(text,title),price=meterPrice(text,ld,extra.packM2);
+ const extra=attrs(text,title),price=productPagePrice(text,ld,extra.packM2);
  if(price.price===null&&extra.packM2){
   const packageAmount=text.match(/Paketpreis\s*:?\s*(\d{1,4}(?:[,.]\d{2}))\s*€[^\d]{0,25}(?:\||\s)\s*Inhalt\s*:?\s*(\d+(?:[,.]\d+)?)\s*m²/i);
   if(packageAmount&&number(packageAmount[2])===extra.packM2&&extra.packM2>=0.1&&extra.packM2<=15){
@@ -234,7 +267,7 @@ function listingProduct(href,label){
  if(!category||title.length<8)return null;
  // Prices must be printed next to this product, never borrowed from unrelated
  // page navigation, recommendations, or another product card.
- const price=meterPrice(label,null,null),features=attrs(label,title);
+ const price=productPagePrice(label,null,null),features=attrs(label,title);
  return {name:title,url:href,category,...features,...price,
    sourcePage:href,checkedAt:new Date().toISOString(),
    verified:price.price!==null,provisional:true};
@@ -301,7 +334,7 @@ function shopify(site,data){
  for(const p of data.products.slice(0,50)){
   const name=nameClean(p.title),url=checkedLink(site,"/products/"+encodeURIComponent(p.handle||""));
   const body=strip(p.body_html||"").slice(0,5000);
-  const category=typeOf(name)||typeOf([p.product_type,p.tags,body.slice(0,500)].join(" "));
+  const category=typeOf(name)||typeOf(p.product_type||"");
   if(!url||!name||!category)continue;
   const extra=attrs(body,name),price=meterPrice(body,null,extra.packM2);
   const variants=Array.isArray(p.variants)?p.variants:[];
