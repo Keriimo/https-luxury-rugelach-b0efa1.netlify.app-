@@ -122,8 +122,8 @@ function save(){
  const raw=JSON.stringify(saved);
  pendingDatabaseWrite=raw;void flushDatabase();
  try{
-  const lite=raw.length<650000?saved:{
-   shops:state.shops.map(shop=>({...shop,items:shop.items.slice(0,60),scan:null})),
+  const lite=raw.length<1600000?saved:{
+   shops:state.shops.map(shop=>({...shop,items:shop.items.filter(p=>["Laminat","Vinyl","Parkett"].includes(p.category)).slice(0,500),scan:null})),
    tab:state.tab
   };
   localStorage.setItem(KEY,JSON.stringify(lite));
