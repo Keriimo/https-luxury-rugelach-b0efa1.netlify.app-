@@ -477,23 +477,37 @@ function renderOverview(items){
  const count=prices.length;
  el("priceCoverage").textContent=count+" Bodenbeläge mit erfasstem €/m²-Preis";
  el("priceCoverage").classList.toggle("warn",!count);
- for(const category of PRICE_CATEGORIES){
-  const options=items.filter(p=>p.category===category&&validPrice(p));
-  options.sort((a,b)=>a.price-b.price);
-  const product=options[0];
-  const card=node("div","best-card"+(!product?" empty-price":""));
-  card.append(node("small","muted","Bester erfasster "+(category==="Vinyl"?"Vinyl / Rigid-Vinyl":category)+"-Preis"));
-  if(product){
-   card.append(node("strong","",showEuro(product.price)+" /"+product.unit));
-   card.append(node("div","name",product.name));
-   card.append(node("small","muted",product.shopName));
-   card.append(productLink(product,"Angebot ansehen ↗"));
-  }else{
-   card.append(node("strong",null,"Noch kein Preis"));
-   card.append(node("div","name","Für diese Kategorie wurde noch kein passender Preis erfasst."));
+ const activeShops=state.shops.filter(shop=>shop.active);
+ for(const shop of activeShops){
+  const shopSection=node("section","shop-best-section");
+  shopSection.style.gridColumn="1 / -1";
+  shopSection.style.minWidth="0";
+  const shopTitle=node("h3",null,shop.name);
+  shopTitle.style.margin="0 0 12px";
+  shopSection.append(shopTitle);
+  const shopGrid=node("div","best-grid");
+  const shopItems=(shop.items||[]).filter(isFloor);
+  for(const category of PRICE_CATEGORIES){
+   const options=shopItems.filter(p=>p.category===category&&validPrice(p));
+   options.sort((a,b)=>a.price-b.price);
+   const product=options[0];
+   const card=node("div","best-card"+(!product?" empty-price":""));
+   card.append(node("small","muted","Bester erfasster "+(category==="Vinyl"?"Vinyl / Rigid-Vinyl":category)+"-Preis"));
+   if(product){
+    card.append(node("strong","",showEuro(product.price)+" /"+product.unit));
+    card.append(node("div","name",product.name));
+    card.append(node("small","muted",shop.name));
+    card.append(productLink(product,"Angebot ansehen ↗"));
+   }else{
+    card.append(node("strong",null,"Preis fehlt"));
+    card.append(node("div","name","Für "+shop.name+" wurde in dieser Kategorie noch kein €/m²-Preis erfasst."));
+   }
+   shopGrid.append(card);
   }
-  section.append(card);
+  shopSection.append(shopGrid);
+  section.append(shopSection);
  }
+ if(!activeShops.length)section.append(node("p","muted","Wähle mindestens einen aktiven Shop aus."));
  const wrap=el("shopCoverage");wrap.replaceChildren();
  const table=node("table","mini-table"),thead=node("thead"),tr=node("tr"),tbody=node("tbody");
  tableHeader(tr,["Shop","Bodenbeläge","Mit €/m²","Günstigster Boden","Scanstatus"]);
